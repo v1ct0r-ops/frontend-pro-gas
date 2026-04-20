@@ -21,3 +21,6 @@ yarn-error.log*
 *.swo
 .DS_Store
 *.local
+
+# Claude Code — configuración local del CLI (no subir al repo)
+.claude/
