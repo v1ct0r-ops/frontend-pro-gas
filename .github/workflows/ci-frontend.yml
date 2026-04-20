@@ -1,0 +1,24 @@
+name: Frontend CI - Guardián de Código
+
+on:
+  pull_request:
+    branches: [ "main", "qa" ] # Solo revisa cuando se intenta enviar código a estas ramas
+
+jobs:
+  build-and-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Instalar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # La versión estándar actual
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Revisar TypeScript y compilar (Aquí falla si hay errores)
+        run: npm run build
