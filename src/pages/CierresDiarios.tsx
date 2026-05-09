@@ -216,7 +216,9 @@ export default function CierresDiarios() {
       .catch(() => {});
   }, []);
 
-  const cierreHoy        = cierres.find((c) => esHoy(c.fecha));
+  const cierresDeHoy      = cierres.filter((c) => esHoy(c.fecha));
+  const cierreAbierto     = cierresDeHoy.find((c) => !c.is_closed) ?? null;
+  const cierresHoySealed  = cierresDeHoy.filter((c) => c.is_closed);
   const cierresAnteriores = cierres.filter((c) => !esHoy(c.fecha));
 
   // ── Cálculos en tiempo real ───────────────────────────────────────────────
@@ -226,6 +228,29 @@ export default function CierresDiarios() {
   const transbankNum  = Number(transbank)   || 0;
   const descuentosNum = Number(descuentos)  || 0;
   const efectivoNum   = Number(efectivo)    || 0;
+
+  // ── Reset del formulario ──────────────────────────────────────────────────
+
+  function resetForm() {
+    setChofer("");
+    setTransbank("");
+    setDescuentos("");
+    setEfectivo("");
+    const prods = productosRef.current;
+    if (prods.length > 0) {
+      const sorted = [...prods].sort((a, b) => {
+        const nA = parseInt(a.formato);
+        const nB = parseInt(b.formato);
+        if (isNaN(nA) && isNaN(nB)) return a.formato.localeCompare(b.formato);
+        if (isNaN(nA)) return 1;
+        if (isNaN(nB)) return -1;
+        return nA - nB;
+      });
+      setLineas(sorted.map((p) => newLinea(p.formato)));
+    } else {
+      setLineas([newLinea()]);
+    }
+  }
 
   // ── Helpers de líneas ─────────────────────────────────────────────────────
 
@@ -251,11 +276,14 @@ export default function CierresDiarios() {
       vouchers_transbank: transbankNum,
       descuentos:         descuentosNum,
     });
-    if (cierre) toast.success("Cierre registrado", { description: "Revisa el cuadre y sella." });
+    if (cierre) {
+      resetForm();
+      toast.success("Cierre registrado", { description: "Revisa el cuadre y sella." });
+    }
   }
 
   async function handleSellar() {
-    if (!cierreHoy) return;
+    if (!cierreAbierto) return;
     setSellando(true);
     setErrorSellado(null);
     try {
@@ -265,7 +293,7 @@ export default function CierresDiarios() {
       productos.forEach((p) => {
         snap[String(p.id)] = { formato: p.formato, stock_llenos: p.stock_llenos, stock_vacios: p.stock_vacios };
       });
-      const ok = await cerrarCierre(cierreHoy.id, { stock_snapshot: JSON.stringify(snap) });
+      const ok = await cerrarCierre(cierreAbierto.id, { stock_snapshot: JSON.stringify(snap) });
       if (ok) {
         setDialogOpen(false);
         toast.success("Cierre sellado", { description: "El documento ha quedado congelado." });
@@ -303,8 +331,8 @@ export default function CierresDiarios() {
       ) : (
         <div className="flex flex-col gap-6 max-w-2xl">
 
-          {/* ══ FORMULARIO DE REGISTRO (solo si no hay cierre hoy) ══════ */}
-          {!cierreHoy && (
+          {/* ══ FORMULARIO DE REGISTRO (solo si no hay cierre abierto) ══ */}
+          {!cierreAbierto && (
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Registrar cierre</CardTitle>
@@ -468,15 +496,15 @@ export default function CierresDiarios() {
             </Card>
           )}
 
-          {/* ══ CIERRE REGISTRADO, PENDIENTE DE SELLADO ═════════════════ */}
-          {cierreHoy && !cierreHoy.is_closed && (
+          {/* ══ CIERRE ABIERTO, PENDIENTE DE SELLADO ════════════════════ */}
+          {cierreAbierto && (
             <Card>
               <CardHeader className="pb-4">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <CardTitle className="text-base">Cierre registrado</CardTitle>
                     <p className="text-sm text-muted-foreground capitalize">
-                      {fechaLegible(cierreHoy.fecha)} · {cierreHoy.chofer_nombre}
+                      {fechaLegible(cierreAbierto.fecha)} · {cierreAbierto.chofer_nombre}
                     </p>
                   </div>
                   <Badge variant="secondary" className="shrink-0">Pendiente de sellado</Badge>
@@ -486,27 +514,27 @@ export default function CierresDiarios() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                   <div>
                     <p className="text-muted-foreground text-xs mb-0.5">Total ventas</p>
-                    <p className="font-semibold tabular-nums">{formatCLP(cierreHoy.total_ventas_calc)}</p>
+                    <p className="font-semibold tabular-nums">{formatCLP(cierreAbierto.total_ventas_calc)}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground text-xs mb-0.5">Descuentos</p>
-                    <p className="font-semibold tabular-nums">{formatCLP(cierreHoy.descuentos)}</p>
+                    <p className="font-semibold tabular-nums">{formatCLP(cierreAbierto.descuentos)}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground text-xs mb-0.5">Transbank</p>
-                    <p className="font-semibold tabular-nums">{formatCLP(cierreHoy.vouchers_transbank)}</p>
+                    <p className="font-semibold tabular-nums">{formatCLP(cierreAbierto.vouchers_transbank)}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground text-xs mb-0.5">Efectivo</p>
-                    <p className="font-semibold tabular-nums">{formatCLP(cierreHoy.efectivo_rendido)}</p>
+                    <p className="font-semibold tabular-nums">{formatCLP(cierreAbierto.efectivo_rendido)}</p>
                   </div>
                 </div>
 
                 <PanelCuadre
-                  ventas={cierreHoy.total_ventas_calc}
-                  desc={cierreHoy.descuentos}
-                  transbank={cierreHoy.vouchers_transbank}
-                  efectivo={cierreHoy.efectivo_rendido}
+                  ventas={cierreAbierto.total_ventas_calc}
+                  desc={cierreAbierto.descuentos}
+                  transbank={cierreAbierto.vouchers_transbank}
+                  efectivo={cierreAbierto.efectivo_rendido}
                 />
 
                 <Button onClick={() => setDialogOpen(true)} disabled={enviando}>
@@ -517,55 +545,16 @@ export default function CierresDiarios() {
             </Card>
           )}
 
-          {/* ══ CIERRE SELLADO ══════════════════════════════════════════ */}
-          {cierreHoy?.is_closed && (
-            <Card className="border-muted bg-muted/20">
-              <CardHeader className="pb-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <CardTitle className="text-base">Cierre del día</CardTitle>
-                    <p className="text-sm text-muted-foreground capitalize">
-                      {fechaLegible(cierreHoy.fecha)} · {cierreHoy.chofer_nombre}
-                    </p>
-                  </div>
-                  <Badge variant="destructive" className="shrink-0">Documento Sellado</Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-4">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground text-xs mb-0.5">Total ventas</p>
-                    <p className="font-semibold tabular-nums">{formatCLP(cierreHoy.total_ventas_calc)}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-xs mb-0.5">Descuentos</p>
-                    <p className="font-semibold tabular-nums">{formatCLP(cierreHoy.descuentos)}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-xs mb-0.5">Transbank</p>
-                    <p className="font-semibold tabular-nums">{formatCLP(cierreHoy.vouchers_transbank)}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-xs mb-0.5">Efectivo</p>
-                    <p className="font-semibold tabular-nums">{formatCLP(cierreHoy.efectivo_rendido)}</p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between text-sm pt-1 border-t">
-                  <span className="font-medium">Cuadre final</span>
-                  <div className="flex items-center gap-2">
-                    {cierreHoy.diferencia !== null && (
-                      <span className="tabular-nums font-semibold">{formatCLP(cierreHoy.diferencia)}</span>
-                    )}
-                    {cierreHoy.estado_cuadre && (
-                      <CuadreBadge estado={cierreHoy.estado_cuadre as EstadoCuadre} />
-                    )}
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Sellado a las {horaLocal(cierreHoy.fecha)}
-                </p>
-              </CardContent>
-            </Card>
+          {/* ══ CIERRES SELLADOS HOY ═════════════════════════════════════ */}
+          {cierresHoySealed.length > 0 && (
+            <div>
+              <h2 className="text-sm font-medium text-muted-foreground mb-3">Sellados hoy</h2>
+              <div className="flex flex-col gap-3">
+                {cierresHoySealed.map((c) => (
+                  <CierreHistorialCard key={c.id} cierre={c} />
+                ))}
+              </div>
+            </div>
           )}
 
           {/* ══ HISTORIAL ═══════════════════════════════════════════════ */}
@@ -589,12 +578,12 @@ export default function CierresDiarios() {
             <AlertDialogTitle>¿Sellar este cierre?</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="flex flex-col gap-3 text-sm">
-                {cierreHoy && (
+                {cierreAbierto && (
                   <PanelCuadre
-                    ventas={cierreHoy.total_ventas_calc}
-                    desc={cierreHoy.descuentos}
-                    transbank={cierreHoy.vouchers_transbank}
-                    efectivo={cierreHoy.efectivo_rendido}
+                    ventas={cierreAbierto.total_ventas_calc}
+                    desc={cierreAbierto.descuentos}
+                    transbank={cierreAbierto.vouchers_transbank}
+                    efectivo={cierreAbierto.efectivo_rendido}
                   />
                 )}
                 <p className="text-muted-foreground">

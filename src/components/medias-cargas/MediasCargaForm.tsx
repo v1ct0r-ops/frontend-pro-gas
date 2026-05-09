@@ -17,6 +17,7 @@ interface ItemForm {
 
 interface Props {
   productos: Producto[];
+  productosLoading?: boolean;
   onSuccess: () => void;
 }
 
@@ -37,7 +38,7 @@ function formatCLP(value: number): string {
   }).format(value);
 }
 
-export default function MediasCargaForm({ productos, onSuccess }: Props) {
+export default function MediasCargaForm({ productos, productosLoading, onSuccess }: Props) {
   const { crearMediaCarga, enviando, error } = useMediasCargas();
   const [numeroGuia, setNumeroGuia] = useState("");
   const [proveedor, setProveedor] = useState("");
@@ -181,7 +182,9 @@ export default function MediasCargaForm({ productos, onSuccess }: Props) {
                             className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                             required
                           >
-                            <option value="">Seleccionar...</option>
+                            <option value="">
+                              {productosLoading ? "Cargando productos…" : productos.length === 0 ? "Sin productos disponibles" : "Seleccionar..."}
+                            </option>
                             {productos.map((p) => (
                               <option key={p.id} value={p.id}>
                                 {p.formato} ({p.peso_kg} kg)

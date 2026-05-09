@@ -24,3 +24,7 @@ yarn-error.log*
 
 # Claude Code — configuración local del CLI (no subir al repo)
 .claude/
+CLAUDE.md
+
+# Spec local del backend — referencia de desarrollo, no parte del build
+openapi.json
