@@ -6,7 +6,7 @@ import {
   Phone,
   Truck,
   Calculator,
-  FileText,
+  Receipt,
   Users,
   LogOut,
   Menu,
@@ -18,17 +18,17 @@ import { Button } from "@/components/ui/button";
 
 // Módulos visibles para todos los roles autenticados
 const NAV_GENERAL = [
-  { to: "/dashboard",       label: "Dashboard",           icon: LayoutDashboard },
-  { to: "/inventario",      label: "Inventario",          icon: Package         },
-  { to: "/bitacora",        label: "Bitácora",            icon: Phone           },
-  { to: "/medias-cargas",   label: "Medias Cargas",       icon: Truck           },
-  { to: "/cierres-diarios", label: "Cierres Diarios",     icon: Calculator      },
+  { to: "/dashboard",       label: "Dashboard",                              icon: LayoutDashboard },
+  { to: "/inventario",      label: "Inventario",                             icon: Package         },
+  { to: "/bitacora",        label: "Registro pedidos recibidos en local",    icon: Phone           },
+  { to: "/medias-cargas",   label: "Medias Cargas (ingresos de galones)",    icon: Truck           },
+  { to: "/cierres-diarios", label: "Cierres Diarios",                        icon: Calculator      },
 ];
 
 // Módulos exclusivos de super_admin
 const NAV_ADMIN = [
-  { to: "/tratados-comerciales", label: "Contratos",  icon: FileText },
-  { to: "/usuarios",             label: "Usuarios",   icon: Users    },
+  { to: "/ventas-revendedor", label: "Ventas a Revendedor", icon: Receipt },
+  { to: "/usuarios",          label: "Usuarios",            icon: Users   },
 ];
 
 export default function AppLayout() {
