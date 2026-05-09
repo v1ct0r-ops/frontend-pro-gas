@@ -23,17 +23,18 @@ export interface Usuario {
 }
 
 export interface UsuarioCreate {
-  username: string;
-  password: string;
   nombre: string;
+  email: string;
+  password: string;
   rol: Rol;
 }
 
 export interface UsuarioUpdate {
-  nombre?: string;
-  rol?: Rol;
-  activo?: boolean;
-  password?: string;
+  nombre: string;
+  email: string;
+  password: string;
+  rol: Rol;
+  estado: boolean;
 }
 
 // ─── Inventario ──────────────────────────────────────────────────────────────
@@ -137,42 +138,47 @@ export interface CerrarCierrePayload {
   stock_snapshot?: string;
 }
 
-// ─── Tratados Comerciales ────────────────────────────────────────────────────
+// ─── Ventas Revendedor ───────────────────────────────────────────────────────
 
-export interface TratadoComercial {
-  id: number;
-  rut: string;
-  razon_social: string;
-  descuento_porcentaje: number;
-  precio_fijo?: number;
-  activo: boolean;
-  created_at: string;
-}
-
-export interface TratadoComercialCreate {
-  rut: string;
-  razon_social: string;
-  descuento_porcentaje: number;
-  precio_fijo?: number;
-}
-
-export interface TratadoComercialUpdate {
-  razon_social?: string;
-  descuento_porcentaje?: number;
-  precio_fijo?: number;
-  activo?: boolean;
-}
-
-export interface CalcularPrecioRequest {
-  rut: string;
+export interface VentaRevendedorLineaCreate {
   producto_id: number;
   cantidad: number;
+  precio_unitario_factura: number;
 }
 
-export interface CalcularPrecioResponse {
-  precio_unitario: number;
-  precio_total: number;
-  descuento_aplicado: boolean;
+export interface VentaRevendedorCreate {
+  rut_cliente: string;
+  nombre_cliente: string;
+  fecha: string;
+  descuento_pesos_por_kilo?: number;
+  lineas: VentaRevendedorLineaCreate[];
+}
+
+export interface VentaRevendedorLinea {
+  id: number;
+  producto_id: number;
+  cantidad: number;
+  precio_unitario_factura: number;
+  kilos_linea: number;
+  descuento_aplicado: number | null;
+  subtotal_neto: number;
+  precio_tipo: "revendedor" | "publico";
+}
+
+export interface VentaRevendedor {
+  id: number;
+  rut_cliente: string;
+  nombre_cliente: string;
+  fecha: string;
+  descuento_pesos_por_kilo: number;
+  kilos_totales: number;
+  total_neto: number;
+  monto_descuento: number;
+  total_neto_rebajado: number;
+  total_iva: number;
+  total_bruto: number;
+  usuario_id: number;
+  lineas: VentaRevendedorLinea[];
 }
 
 // ─── Paginación genérica ──────────────────────────────────────────────────────
