@@ -7,6 +7,8 @@ import Inventario from "@/pages/Inventario";
 import MediasCargas from "@/pages/MediasCargas";
 import Bitacora from "@/pages/Bitacora";
 import CierresDiarios from "@/pages/CierresDiarios";
+import VentasRevendedor from "@/pages/VentasRevendedor";
+import Usuarios from "@/pages/Usuarios";
 
 export default function App() {
   return (
@@ -22,7 +24,12 @@ export default function App() {
           <Route path="/medias-cargas" element={<MediasCargas />} />
           <Route path="/bitacora" element={<Bitacora />} />
           <Route path="/cierres-diarios" element={<CierresDiarios />} />
-          {/* Próximas rutas se agregan aquí a medida que se construyen */}
+          
+          {/* Rutas exclusivas de super_admin */}
+          <Route element={<ProtectedRoute requiredRole="super_admin" />}>
+            <Route path="/ventas-revendedor" element={<VentasRevendedor />} />
+            <Route path="/usuarios" element={<Usuarios />} />
+          </Route>
         </Route>
       </Route>
 

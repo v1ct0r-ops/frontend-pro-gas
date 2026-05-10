@@ -36,7 +36,7 @@ export default function MediasCargas() {
       </div>
 
       <div className="max-w-4xl">
-        <MediasCargaForm productos={productos} onSuccess={refetch} />
+        <MediasCargaForm productos={productos} productosLoading={cargando} onSuccess={refetch} />
       </div>
     </div>
   );
