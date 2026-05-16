@@ -3,6 +3,7 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +26,23 @@ function formatCLP(n: number) {
 function toInt(raw: string): number {
   const n = parseInt(raw, 10);
   return isNaN(n) || n < 0 ? 0 : n;
+}
+
+// ─── CuadreBadge (local) ─────────────────────────────────────────────────────
+
+type EstadoCuadreLocal = "exacto" | "faltante" | "sobrante";
+
+const BADGE_CLS: Record<EstadoCuadreLocal, string> = {
+  exacto:   "bg-green-100  text-green-800  border-green-200  hover:bg-green-100",
+  faltante: "bg-red-100    text-red-800    border-red-200    hover:bg-red-100",
+  sobrante: "bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-100",
+};
+const BADGE_LABEL: Record<EstadoCuadreLocal, string> = {
+  exacto: "Exacto", faltante: "Faltante", sobrante: "Sobrante",
+};
+
+function estadoDesdeDiff(diff: number): EstadoCuadreLocal {
+  return diff === 0 ? "exacto" : diff > 0 ? "faltante" : "sobrante";
 }
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -198,23 +216,31 @@ export function EditarCierreModal({ cierre, enviando, onClose, onGuardar }: Prop
             <div className="border-t my-1" />
             <FilaResumen label="Rendido (ef. + TB)" value={formatCLP(rendido)} muted />
             <div className="border-t my-1" />
-            <div className="flex justify-between text-sm font-semibold">
+            <div className="flex items-center justify-between text-sm font-semibold">
               <span>Diferencia</span>
-              <span
-                className={`tabular-nums ${
-                  diferencia > 0
-                    ? "text-red-600"
+              <div className="flex items-center gap-2">
+                <span
+                  className={`tabular-nums ${
+                    diferencia > 0
+                      ? "text-red-600"
+                      : diferencia < 0
+                      ? "text-yellow-600"
+                      : "text-green-600"
+                  }`}
+                >
+                  {diferencia > 0
+                    ? `+ ${formatCLP(diferencia)}`
                     : diferencia < 0
-                    ? "text-yellow-600"
-                    : "text-green-600"
-                }`}
-              >
-                {diferencia > 0
-                  ? `+ ${formatCLP(diferencia)}`
-                  : diferencia < 0
-                  ? `− ${formatCLP(Math.abs(diferencia))}`
-                  : formatCLP(0)}
-              </span>
+                    ? `− ${formatCLP(Math.abs(diferencia))}`
+                    : formatCLP(0)}
+                </span>
+                <Badge
+                  variant="outline"
+                  className={BADGE_CLS[estadoDesdeDiff(diferencia)]}
+                >
+                  {BADGE_LABEL[estadoDesdeDiff(diferencia)]}
+                </Badge>
+              </div>
             </div>
           </div>
 
