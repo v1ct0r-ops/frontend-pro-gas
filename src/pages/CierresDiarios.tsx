@@ -28,12 +28,8 @@ type LineaVenta = {
   id: number;
   formato: string;
   cantidad: string;
+  vacios: string;
   precio: string;
-};
-
-type MovimientoLinea = {
-  galones_vendidos: string;
-  vacios_devueltos: string;
 };
 
 // ─── Utilidades ───────────────────────────────────────────────────────────────
@@ -129,7 +125,7 @@ const SELECT_CLS =
 
 let nextId = 1;
 function newLinea(formato = ""): LineaVenta {
-  return { id: nextId++, formato, cantidad: "", precio: "" };
+  return { id: nextId++, formato, cantidad: "", vacios: "", precio: "" };
 }
 
 // ─── Página principal ─────────────────────────────────────────────────────────
@@ -163,8 +159,7 @@ export default function CierresDiarios() {
   const [efectivo, setEfectivo]             = useState("");
   const [choferes, setChoferes]             = useState<Usuario[]>([]);
   const [productosOrdenados, setProductosOrdenados] = useState<Producto[]>([]);
-  const [movimientos, setMovimientos]       = useState<Record<number, MovimientoLinea>>({});
-  const productosRef                        = useRef<Producto[]>([]);
+  const productosRef                                = useRef<Producto[]>([]);
 
   // ── Dialogs ───────────────────────────────────────────────────────────────
   const [cierreParaEditar, setCierreParaEditar]   = useState<CierreDiario | null>(null);
@@ -198,9 +193,6 @@ export default function CierresDiarios() {
           });
           setProductosOrdenados(sorted);
           setLineas(sorted.map((p) => newLinea(p.formato)));
-          setMovimientos(
-            Object.fromEntries(sorted.map((p) => [p.id, { galones_vendidos: "", vacios_devueltos: "" }]))
-          );
         }
       })
       .catch(() => {});
@@ -243,12 +235,8 @@ export default function CierresDiarios() {
         return nA - nB;
       });
       setLineas(sorted.map((p) => newLinea(p.formato)));
-      setMovimientos(
-        Object.fromEntries(sorted.map((p) => [p.id, { galones_vendidos: "", vacios_devueltos: "" }]))
-      );
     } else {
       setLineas([newLinea()]);
-      setMovimientos({});
     }
   }
 
@@ -266,26 +254,17 @@ export default function CierresDiarios() {
     setLineas((prev) => (prev.length > 1 ? prev.filter((l) => l.id !== id) : prev));
   }
 
-  function setMovimiento(productoId: number, field: keyof MovimientoLinea, value: string) {
-    setMovimientos((prev) => ({
-      ...prev,
-      [productoId]: { ...prev[productoId], [field]: value },
-    }));
-  }
-
   // ── Acciones ─────────────────────────────────────────────────────────────
 
   async function handleRegistrar() {
-    const lineas_movimiento: LineaMovimientoCierre[] = productosOrdenados
-      .filter((p) => {
-        const m = movimientos[p.id];
-        return m && (Number(m.galones_vendidos) > 0 || Number(m.vacios_devueltos) > 0);
-      })
-      .map((p) => ({
-        producto_id:      p.id,
-        galones_vendidos: Number(movimientos[p.id]?.galones_vendidos) || 0,
-        vacios_devueltos: Number(movimientos[p.id]?.vacios_devueltos) || 0,
-      }));
+    const lineas_movimiento: LineaMovimientoCierre[] = lineas.flatMap((l) => {
+      const vendidos = Number(l.cantidad) || 0;
+      const vacios   = Number(l.vacios)   || 0;
+      if (vendidos === 0 && vacios === 0) return [];
+      const producto = productosOrdenados.find((p) => p.formato === l.formato);
+      if (!producto) return [];
+      return [{ producto_id: producto.id, galones_vendidos: vendidos, vacios_devueltos: vacios }];
+    });
 
     const cierre = await crearCierre({
       chofer_nombre:      chofer.trim() || "Sin asignar",
@@ -404,10 +383,11 @@ export default function CierresDiarios() {
                 <p className="text-sm font-semibold">Ventas por formato</p>
                 <div
                   className="grid gap-x-2 text-xs font-medium text-muted-foreground uppercase tracking-wide border-b pb-1.5"
-                  style={{ gridTemplateColumns: "1fr 90px 90px 90px 28px" }}
+                  style={{ gridTemplateColumns: "1fr 80px 80px 90px 90px 28px" }}
                 >
                   <span>Formato</span>
-                  <span className="text-right">Cantidad</span>
+                  <span className="text-right">Vendidos</span>
+                  <span className="text-right">Vacíos</span>
                   <span className="text-right">Precio venta</span>
                   <span className="text-right">Subtotal</span>
                   <span />
@@ -417,7 +397,7 @@ export default function CierresDiarios() {
                     <div
                       key={linea.id}
                       className="grid items-center gap-x-2"
-                      style={{ gridTemplateColumns: "1fr 90px 90px 90px 28px" }}
+                      style={{ gridTemplateColumns: "1fr 80px 80px 90px 90px 28px" }}
                     >
                       <Input
                         placeholder="Formato (ej: 5kg)"
@@ -432,6 +412,15 @@ export default function CierresDiarios() {
                         placeholder="0"
                         value={linea.cantidad}
                         onChange={(e) => setLinea(linea.id, "cantidad", e.target.value)}
+                        className="h-9 text-right tabular-nums"
+                      />
+                      <Input
+                        type="number"
+                        inputMode="numeric"
+                        min="0"
+                        placeholder="0"
+                        value={linea.vacios}
+                        onChange={(e) => setLinea(linea.id, "vacios", e.target.value)}
                         className="h-9 text-right tabular-nums"
                       />
                       <Input
@@ -480,53 +469,6 @@ export default function CierresDiarios() {
                   <span className="tabular-nums">{formatCLP(totalVentas)}</span>
                 </div>
               </div>
-
-              {/* Movimiento de cilindros */}
-              {productosOrdenados.length > 0 && (
-                <div className="flex flex-col gap-2">
-                  <p className="text-sm font-semibold">Movimiento de cilindros</p>
-                  <div
-                    className="grid gap-x-2 text-xs font-medium text-muted-foreground uppercase tracking-wide border-b pb-1.5"
-                    style={{ gridTemplateColumns: "1fr 100px 130px" }}
-                  >
-                    <span>Formato</span>
-                    <span className="text-right">Vendidos</span>
-                    <span className="text-right">Vacíos devueltos</span>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    {productosOrdenados.map((p) => {
-                      const mov = movimientos[p.id] ?? { galones_vendidos: "", vacios_devueltos: "" };
-                      return (
-                        <div
-                          key={p.id}
-                          className="grid items-center gap-x-2"
-                          style={{ gridTemplateColumns: "1fr 100px 130px" }}
-                        >
-                          <span className="text-sm">{p.formato}</span>
-                          <Input
-                            type="number"
-                            inputMode="numeric"
-                            min="0"
-                            placeholder="0"
-                            value={mov.galones_vendidos}
-                            onChange={(e) => setMovimiento(p.id, "galones_vendidos", e.target.value)}
-                            className="h-9 text-right tabular-nums"
-                          />
-                          <Input
-                            type="number"
-                            inputMode="numeric"
-                            min="0"
-                            placeholder="0"
-                            value={mov.vacios_devueltos}
-                            onChange={(e) => setMovimiento(p.id, "vacios_devueltos", e.target.value)}
-                            className="h-9 text-right tabular-nums"
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
 
               {/* Rendición */}
               <div className="flex flex-col gap-3">
