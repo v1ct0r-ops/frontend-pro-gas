@@ -28,7 +28,6 @@ type LineaVenta = {
   id: number;
   formato: string;
   cantidad: string;
-  vacios: string;
   precio: string;
 };
 
@@ -125,7 +124,7 @@ const SELECT_CLS =
 
 let nextId = 1;
 function newLinea(formato = ""): LineaVenta {
-  return { id: nextId++, formato, cantidad: "", vacios: "", precio: "" };
+  return { id: nextId++, formato, cantidad: "", precio: "" };
 }
 
 // ─── Página principal ─────────────────────────────────────────────────────────
@@ -259,11 +258,10 @@ export default function CierresDiarios() {
   async function handleRegistrar() {
     const lineas_movimiento: LineaMovimientoCierre[] = lineas.flatMap((l) => {
       const vendidos = Number(l.cantidad) || 0;
-      const vacios   = Number(l.vacios)   || 0;
-      if (vendidos === 0 && vacios === 0) return [];
+      if (vendidos === 0) return [];
       const producto = productosOrdenados.find((p) => p.formato === l.formato);
       if (!producto) return [];
-      return [{ producto_id: producto.id, galones_vendidos: vendidos, vacios_devueltos: vacios }];
+      return [{ producto_id: producto.id, galones_vendidos: vendidos, vacios_devueltos: vendidos }];
     });
 
     const cierre = await crearCierre({
@@ -383,11 +381,10 @@ export default function CierresDiarios() {
                 <p className="text-sm font-semibold">Ventas por formato</p>
                 <div
                   className="grid gap-x-2 text-xs font-medium text-muted-foreground uppercase tracking-wide border-b pb-1.5"
-                  style={{ gridTemplateColumns: "1fr 80px 80px 90px 90px 28px" }}
+                  style={{ gridTemplateColumns: "1fr 90px 90px 90px 28px" }}
                 >
                   <span>Formato</span>
-                  <span className="text-right">Vendidos</span>
-                  <span className="text-right">Vacíos</span>
+                  <span className="text-right">Cantidad</span>
                   <span className="text-right">Precio venta</span>
                   <span className="text-right">Subtotal</span>
                   <span />
@@ -397,7 +394,7 @@ export default function CierresDiarios() {
                     <div
                       key={linea.id}
                       className="grid items-center gap-x-2"
-                      style={{ gridTemplateColumns: "1fr 80px 80px 90px 90px 28px" }}
+                      style={{ gridTemplateColumns: "1fr 90px 90px 90px 28px" }}
                     >
                       <Input
                         placeholder="Formato (ej: 5kg)"
@@ -412,15 +409,6 @@ export default function CierresDiarios() {
                         placeholder="0"
                         value={linea.cantidad}
                         onChange={(e) => setLinea(linea.id, "cantidad", e.target.value)}
-                        className="h-9 text-right tabular-nums"
-                      />
-                      <Input
-                        type="number"
-                        inputMode="numeric"
-                        min="0"
-                        placeholder="0"
-                        value={linea.vacios}
-                        onChange={(e) => setLinea(linea.id, "vacios", e.target.value)}
                         className="h-9 text-right tabular-nums"
                       />
                       <Input
