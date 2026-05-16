@@ -3,6 +3,7 @@ import { Loader2, Lock, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useCierreDiarios } from "@/hooks/useCierreDiarios";
 import { CierresDiariosTable } from "@/components/cierres-diarios/CierresDiariosTable";
+import { EditarCierreModal } from "@/components/cierres-diarios/EditarCierreModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import apiClient from "@/lib/api";
-import type { CierreDiario, EstadoCuadre, Producto, Usuario } from "@/types/api";
+import type { CierreDiario, CierreDiarioUpdate, EstadoCuadre, Producto, Usuario } from "@/types/api";
 
 // ─── Tipos locales ────────────────────────────────────────────────────────────
 
@@ -143,6 +144,7 @@ export default function CierresDiarios() {
     errorCarga,
     refetch,
     crearCierre,
+    editarCierre,
     cerrarCierre,
     eliminarCierre,
     descargarPdf,
@@ -158,6 +160,7 @@ export default function CierresDiarios() {
   const productosRef                = useRef<Producto[]>([]);
 
   // ── Dialogs ───────────────────────────────────────────────────────────────
+  const [cierreParaEditar, setCierreParaEditar]   = useState<CierreDiario | null>(null);
   const [cierreParaCerrar, setCierreParaCerrar]   = useState<CierreDiario | null>(null);
   const [cierreParaEliminar, setCierreParaEliminar] = useState<CierreDiario | null>(null);
   const [errorDialog, setErrorDialog]             = useState<string | null>(null);
@@ -620,13 +623,21 @@ export default function CierresDiarios() {
             totalPages={totalPages}
             cargando={cargando}
             onPageChange={setPagina}
-            onEditar={() => toast.info("Edición disponible próximamente.")}
+            onEditar={(c) => setCierreParaEditar(c)}
             onCerrar={(c) => { setErrorDialog(null); setCierreParaCerrar(c); }}
             onEliminar={(c) => { setErrorDialog(null); setCierreParaEliminar(c); }}
             onDescargarPdf={descargarPdf}
           />
         </div>
       </div>
+
+      {/* ══ MODAL — Editar cierre ═══════════════════════════════════════════════ */}
+      <EditarCierreModal
+        cierre={cierreParaEditar}
+        enviando={enviando}
+        onClose={() => setCierreParaEditar(null)}
+        onGuardar={(id: number, payload: CierreDiarioUpdate) => editarCierre(id, payload)}
+      />
 
       {/* ══ DIALOG — Sellar cierre ══════════════════════════════════════════════ */}
       <AlertDialog
