@@ -7,3 +7,14 @@ export async function obtenerResumenDashboard(): Promise<DashboardResumen> {
   const { data } = await apiClient.get<DashboardResumen>(`${BASE}/resumen`);
   return data;
 }
+
+export async function enviarReporteDiario(
+  emailDestino?: string
+): Promise<{ mensaje: string }> {
+  const body = emailDestino ? { email_destino: emailDestino } : {};
+  const { data } = await apiClient.post<{ mensaje: string }>(
+    "/api/v1/reportes/enviar-diario",
+    body
+  );
+  return data;
+}

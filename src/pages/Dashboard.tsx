@@ -1,4 +1,4 @@
-import { Lock, RefreshCw } from "lucide-react";
+import { Lock, RefreshCw, Send } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -20,6 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useDashboard } from "@/hooks/useDashboard";
+import { useAuth } from "@/hooks/useAuth";
 import type { CajaHoyResumen } from "@/types/dashboard";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -98,7 +99,9 @@ function TooltipGrafico({ active, payload, label }: TooltipContentProps) {
 // ─── Página ───────────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const { resumen, cargando, error, refetch } = useDashboard();
+  const { resumen, cargando, error, refetch, enviandoReporte, dispararReporte } = useDashboard();
+  const { hasRole } = useAuth();
+  const esSuperAdmin = hasRole("super_admin");
 
   const cargandoInicial = cargando && !resumen;
   const caja = resumen?.caja_hoy;
@@ -119,10 +122,23 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground text-sm mt-1">Resumen operativo del día</p>
         </div>
-        <Button variant="outline" size="sm" onClick={refetch} disabled={cargando}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${cargando ? "animate-spin" : ""}`} />
-          Actualizar
-        </Button>
+        <div className="flex items-center gap-2">
+          {esSuperAdmin && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={dispararReporte}
+              disabled={enviandoReporte}
+            >
+              <Send className={`h-4 w-4 mr-2 ${enviandoReporte ? "animate-pulse" : ""}`} />
+              {enviandoReporte ? "Enviando…" : "Enviar Reporte Ahora"}
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={refetch} disabled={cargando}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${cargando ? "animate-spin" : ""}`} />
+            Actualizar
+          </Button>
+        </div>
       </div>
 
       {/* Error de red */}

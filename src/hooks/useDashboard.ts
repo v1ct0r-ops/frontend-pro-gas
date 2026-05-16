@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import { obtenerResumenDashboard } from "@/services/dashboard";
+import { toast } from "sonner";
+import { obtenerResumenDashboard, enviarReporteDiario } from "@/services/dashboard";
 import type { DashboardResumen } from "@/types/dashboard";
 
 export function useDashboard() {
   const [resumen, setResumen] = useState<DashboardResumen | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [enviandoReporte, setEnviandoReporte] = useState(false);
 
   const refetch = useCallback(async () => {
     setCargando(true);
@@ -20,9 +22,21 @@ export function useDashboard() {
     }
   }, []);
 
+  const dispararReporte = useCallback(async () => {
+    setEnviandoReporte(true);
+    try {
+      const { mensaje } = await enviarReporteDiario();
+      toast.success(mensaje);
+    } catch {
+      toast.error("No se pudo enviar el reporte. Intente nuevamente.");
+    } finally {
+      setEnviandoReporte(false);
+    }
+  }, []);
+
   useEffect(() => {
     refetch();
   }, [refetch]);
 
-  return { resumen, cargando, error, refetch };
+  return { resumen, cargando, error, refetch, enviandoReporte, dispararReporte };
 }
