@@ -212,6 +212,20 @@ export interface VentaRevendedorCreate {
   lineas: VentaRevendedorLineaCreate[];
 }
 
+export interface VentaRevendedorPatch {
+  rut_cliente?: string;
+  nombre_cliente?: string;
+  fecha?: string;
+}
+
+export interface VentasRevendedorListParams {
+  fecha_desde?: string;
+  fecha_hasta?: string;
+  rut_cliente?: string;
+  page?: number;
+  limit?: number;
+}
+
 export interface VentaRevendedorLinea {
   id: number;
   producto_id: number;
@@ -228,13 +242,14 @@ export interface VentaRevendedor {
   rut_cliente: string;
   nombre_cliente: string;
   fecha: string;
-  descuento_pesos_por_kilo: number;
-  kilos_totales: number;
+  created_at: string;
   total_neto: number;
-  monto_descuento: number;
-  total_neto_rebajado: number;
+  descuento_pesos_por_kilo: number;
+  monto_descuento_total: number;
+  total_final: number;
   total_iva: number;
   total_bruto: number;
+  kilos_totales: number;
   usuario_id: number;
   lineas: VentaRevendedorLinea[];
 }

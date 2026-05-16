@@ -146,7 +146,7 @@ export default function VentasRevendedor() {
       setUltimaVenta({
         id: resultado.id,
         kilos_totales: resultado.kilos_totales,
-        monto_descuento: resultado.monto_descuento,
+        monto_descuento: resultado.monto_descuento_total,
         total_bruto: resultado.total_bruto,
       });
       resetForm();
