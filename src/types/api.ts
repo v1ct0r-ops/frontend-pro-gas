@@ -56,28 +56,66 @@ export interface AjusteStockRequest {
 
 // ─── Medias Cargas ───────────────────────────────────────────────────────────
 
-export interface MediaCargaItem {
+export interface LineaMediaCargaCreate {
   producto_id: number;
   cantidad_llenos: number;
-  cantidad_vacios: number;
-  precio_unitario_neto?: number;
+  precio_unitario_neto: number;
+}
+
+export interface LineaMediaCarga {
+  id: number;
+  producto_id: number;
+  cantidad_llenos: number;
+  precio_unitario_neto: number;
+  subtotal_neto: number;
+}
+
+export interface MediaCargaCreate {
+  numero_guia: string;
+  proveedor: string;
+  fecha: string;
+  lineas: LineaMediaCargaCreate[];
 }
 
 export interface MediaCarga {
   id: number;
   numero_guia: string;
+  proveedor: string | null;
   fecha: string;
-  proveedor: string;
-  lineas: MediaCargaItem[];
-  creado_por: string;
-  created_at: string;
+  total_neto: number;
+  total_iva: number;
+  total_bruto: number;
+  kilos_totales: number;
+  usuario_id: number;
+  lineas: LineaMediaCarga[];
 }
 
-export interface MediaCargaCreate {
+// ─── Historial de Auditoría ──────────────────────────────────────────────────
+
+export interface LineaHistorial {
+  id: number;
+  formato_producto: string;
+  cantidad_llenos: number;
+  cantidad_vacios: number;
+  precio_unitario_neto: number;
+  kilos_linea: number;
+  subtotal_neto: number;
+}
+
+export interface HistorialAuditoria {
+  id: number;
+  media_carga_id: number | null;
   numero_guia: string;
-  fecha: string;
   proveedor: string;
-  lineas: MediaCargaItem[];
+  fecha_documento: string;
+  total_neto: number;
+  total_iva: number;
+  total_bruto: number;
+  kilos_totales: number;
+  fecha_registro: string;
+  registrado_por_id: number;
+  registrado_por_nombre: string;
+  lineas: LineaHistorial[];
 }
 
 // ─── Bitácora ────────────────────────────────────────────────────────────────
@@ -122,19 +160,39 @@ export interface CierreDiario {
   estado_cuadre: EstadoCuadre | null;
   stock_snapshot: Record<string, StockSnapshotEntry> | null;
   usuario_id: number;
+  created_at: string;
+  closed_at: string | null;
+  cerrado_por_id: number | null;
 }
 
 export interface CierreDiarioCreate {
   chofer_nombre: string;
-  total_ventas_calc: number;
-  efectivo_rendido: number;
-  vouchers_transbank: number;
-  descuentos: number;
-  // fecha es inyectada por el hook con new Date().toISOString()
+  fecha?: string;
+  total_ventas_calc?: number;
+  efectivo_rendido?: number;
+  vouchers_transbank?: number;
+  descuentos?: number;
+}
+
+export interface CierreDiarioUpdate {
+  chofer_nombre?: string;
+  fecha?: string;
+  efectivo_rendido?: number;
+  vouchers_transbank?: number;
+  descuentos?: number;
+  total_ventas_calc?: number;
+}
+
+export interface CierresDiariosListParams {
+  fecha_desde?: string;
+  fecha_hasta?: string;
+  chofer?: string;
+  is_closed?: boolean;
+  page?: number;
+  limit?: number;
 }
 
 export interface CerrarCierrePayload {
-  // stock_snapshot es opcional; el backend puede calcularlo server-side
   stock_snapshot?: string;
 }
 
@@ -186,6 +244,6 @@ export interface VentaRevendedor {
 export interface PaginatedResponse<T> {
   items: T[];
   total: number;
-  page: number;
-  size: number;
+  page?: number;
+  size?: number;
 }
