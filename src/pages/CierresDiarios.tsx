@@ -20,7 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import apiClient from "@/lib/api";
-import type { CierreDiario, CierreDiarioUpdate, EstadoCuadre, Producto, Usuario } from "@/types/api";
+import type { CierreDiario, CierreDiarioUpdate, EstadoCuadre, LineaMovimientoCierre, Producto, Usuario } from "@/types/api";
 
 // ─── Tipos locales ────────────────────────────────────────────────────────────
 
@@ -29,6 +29,11 @@ type LineaVenta = {
   formato: string;
   cantidad: string;
   precio: string;
+};
+
+type MovimientoLinea = {
+  galones_vendidos: string;
+  vacios_devueltos: string;
 };
 
 // ─── Utilidades ───────────────────────────────────────────────────────────────
@@ -151,13 +156,15 @@ export default function CierresDiarios() {
   } = useCierreDiarios();
 
   // ── Estado del formulario de creación ─────────────────────────────────────
-  const [lineas, setLineas]         = useState<LineaVenta[]>([newLinea()]);
-  const [chofer, setChofer]         = useState("");
-  const [transbank, setTransbank]   = useState("");
-  const [descuentos, setDescuentos] = useState("");
-  const [efectivo, setEfectivo]     = useState("");
-  const [choferes, setChoferes]     = useState<Usuario[]>([]);
-  const productosRef                = useRef<Producto[]>([]);
+  const [lineas, setLineas]                 = useState<LineaVenta[]>([newLinea()]);
+  const [chofer, setChofer]                 = useState("");
+  const [transbank, setTransbank]           = useState("");
+  const [descuentos, setDescuentos]         = useState("");
+  const [efectivo, setEfectivo]             = useState("");
+  const [choferes, setChoferes]             = useState<Usuario[]>([]);
+  const [productosOrdenados, setProductosOrdenados] = useState<Producto[]>([]);
+  const [movimientos, setMovimientos]       = useState<Record<number, MovimientoLinea>>({});
+  const productosRef                        = useRef<Producto[]>([]);
 
   // ── Dialogs ───────────────────────────────────────────────────────────────
   const [cierreParaEditar, setCierreParaEditar]   = useState<CierreDiario | null>(null);
@@ -189,7 +196,11 @@ export default function CierresDiarios() {
             if (isNaN(nB)) return -1;
             return nA - nB;
           });
+          setProductosOrdenados(sorted);
           setLineas(sorted.map((p) => newLinea(p.formato)));
+          setMovimientos(
+            Object.fromEntries(sorted.map((p) => [p.id, { galones_vendidos: "", vacios_devueltos: "" }]))
+          );
         }
       })
       .catch(() => {});
@@ -232,8 +243,12 @@ export default function CierresDiarios() {
         return nA - nB;
       });
       setLineas(sorted.map((p) => newLinea(p.formato)));
+      setMovimientos(
+        Object.fromEntries(sorted.map((p) => [p.id, { galones_vendidos: "", vacios_devueltos: "" }]))
+      );
     } else {
       setLineas([newLinea()]);
+      setMovimientos({});
     }
   }
 
@@ -251,15 +266,34 @@ export default function CierresDiarios() {
     setLineas((prev) => (prev.length > 1 ? prev.filter((l) => l.id !== id) : prev));
   }
 
+  function setMovimiento(productoId: number, field: keyof MovimientoLinea, value: string) {
+    setMovimientos((prev) => ({
+      ...prev,
+      [productoId]: { ...prev[productoId], [field]: value },
+    }));
+  }
+
   // ── Acciones ─────────────────────────────────────────────────────────────
 
   async function handleRegistrar() {
+    const lineas_movimiento: LineaMovimientoCierre[] = productosOrdenados
+      .filter((p) => {
+        const m = movimientos[p.id];
+        return m && (Number(m.galones_vendidos) > 0 || Number(m.vacios_devueltos) > 0);
+      })
+      .map((p) => ({
+        producto_id:      p.id,
+        galones_vendidos: Number(movimientos[p.id]?.galones_vendidos) || 0,
+        vacios_devueltos: Number(movimientos[p.id]?.vacios_devueltos) || 0,
+      }));
+
     const cierre = await crearCierre({
       chofer_nombre:      chofer.trim() || "Sin asignar",
       total_ventas_calc:  totalVentas,
       efectivo_rendido:   efectivoNum,
       vouchers_transbank: transbankNum,
       descuentos:         descuentosNum,
+      lineas_movimiento,
     });
     if (cierre) {
       resetForm();
@@ -446,6 +480,53 @@ export default function CierresDiarios() {
                   <span className="tabular-nums">{formatCLP(totalVentas)}</span>
                 </div>
               </div>
+
+              {/* Movimiento de cilindros */}
+              {productosOrdenados.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm font-semibold">Movimiento de cilindros</p>
+                  <div
+                    className="grid gap-x-2 text-xs font-medium text-muted-foreground uppercase tracking-wide border-b pb-1.5"
+                    style={{ gridTemplateColumns: "1fr 100px 130px" }}
+                  >
+                    <span>Formato</span>
+                    <span className="text-right">Vendidos</span>
+                    <span className="text-right">Vacíos devueltos</span>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    {productosOrdenados.map((p) => {
+                      const mov = movimientos[p.id] ?? { galones_vendidos: "", vacios_devueltos: "" };
+                      return (
+                        <div
+                          key={p.id}
+                          className="grid items-center gap-x-2"
+                          style={{ gridTemplateColumns: "1fr 100px 130px" }}
+                        >
+                          <span className="text-sm">{p.formato}</span>
+                          <Input
+                            type="number"
+                            inputMode="numeric"
+                            min="0"
+                            placeholder="0"
+                            value={mov.galones_vendidos}
+                            onChange={(e) => setMovimiento(p.id, "galones_vendidos", e.target.value)}
+                            className="h-9 text-right tabular-nums"
+                          />
+                          <Input
+                            type="number"
+                            inputMode="numeric"
+                            min="0"
+                            placeholder="0"
+                            value={mov.vacios_devueltos}
+                            onChange={(e) => setMovimiento(p.id, "vacios_devueltos", e.target.value)}
+                            className="h-9 text-right tabular-nums"
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Rendición */}
               <div className="flex flex-col gap-3">

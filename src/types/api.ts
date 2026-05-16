@@ -165,6 +165,12 @@ export interface CierreDiario {
   cerrado_por_id: number | null;
 }
 
+export interface LineaMovimientoCierre {
+  producto_id: number;
+  galones_vendidos: number;
+  vacios_devueltos: number;
+}
+
 export interface CierreDiarioCreate {
   chofer_nombre: string;
   fecha?: string;
@@ -172,6 +178,7 @@ export interface CierreDiarioCreate {
   efectivo_rendido?: number;
   vouchers_transbank?: number;
   descuentos?: number;
+  lineas_movimiento: LineaMovimientoCierre[];
 }
 
 export interface CierreDiarioUpdate {
