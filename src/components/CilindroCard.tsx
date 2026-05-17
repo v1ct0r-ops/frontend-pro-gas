@@ -53,7 +53,7 @@ export default function CilindroCard({ producto, onAjusteGuardado }: CilindroCar
   });
 
   function abrirAjuste() {
-    setAjuste({ llenos: String(llenos), vacios: String(vacios), motivo: "", guardando: false });
+    setAjuste({ llenos: "0", vacios: "0", motivo: "", guardando: false });
     setEditando(true);
   }
 
@@ -67,9 +67,17 @@ export default function CilindroCard({ producto, onAjusteGuardado }: CilindroCar
       return;
     }
 
+    const nuevoLlenos = parseInt(ajuste.llenos, 10);
+    const nuevoVacios = parseInt(ajuste.vacios, 10);
+
+    if (isNaN(nuevoLlenos) || isNaN(nuevoVacios)) {
+      toast.error("Los valores de stock deben ser números válidos.");
+      return;
+    }
+
     const body: AjusteStockRequest = {
-      stock_llenos: parseInt(ajuste.llenos, 10) || 0,
-      stock_vacios: parseInt(ajuste.vacios, 10) || 0,
+      delta_llenos: nuevoLlenos,
+      delta_vacios: nuevoVacios,
       motivo: ajuste.motivo.trim(),
     };
 
@@ -140,21 +148,22 @@ export default function CilindroCard({ producto, onAjusteGuardado }: CilindroCar
         {/* Panel de ajuste inline — se despliega dentro de la tarjeta */}
         {esSuperAdmin && editando && (
           <div className="flex flex-col gap-2 pt-2 border-t">
+            <p className="text-xs text-muted-foreground">
+              Ingresa la cantidad a sumar (+) o restar (−).
+            </p>
             <div className="flex flex-col gap-1">
-              <Label className="text-xs">Llenos</Label>
+              <Label className="text-xs">Δ Llenos</Label>
               <Input
                 type="number"
-                min="0"
                 value={ajuste.llenos}
                 onChange={(e) => setAjuste((p) => ({ ...p, llenos: e.target.value }))}
                 className="h-9 text-sm"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <Label className="text-xs">Vacíos</Label>
+              <Label className="text-xs">Δ Vacíos</Label>
               <Input
                 type="number"
-                min="0"
                 value={ajuste.vacios}
                 onChange={(e) => setAjuste((p) => ({ ...p, vacios: e.target.value }))}
                 className="h-9 text-sm"

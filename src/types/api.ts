@@ -49,8 +49,8 @@ export interface Producto {
 }
 
 export interface AjusteStockRequest {
-  stock_llenos?: number;
-  stock_vacios?: number;
+  delta_llenos?: number;
+  delta_vacios?: number;
   motivo: string;
 }
 
