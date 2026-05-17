@@ -22,10 +22,10 @@ export function useDashboard() {
     }
   }, []);
 
-  const dispararReporte = useCallback(async () => {
+  const dispararReporte = useCallback(async (emailDestino?: string) => {
     setEnviandoReporte(true);
     try {
-      const { mensaje } = await enviarReporteDiario();
+      const { mensaje } = await enviarReporteDiario(emailDestino);
       toast.success(mensaje);
     } catch {
       toast.error("No se pudo enviar el reporte. Intente nuevamente.");

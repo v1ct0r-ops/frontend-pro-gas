@@ -124,12 +124,10 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-2">
           {esSuperAdmin && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={dispararReporte}
-              disabled={enviandoReporte}
-            >
+            <Button 
+                  onClick={() => dispararReporte("v.garces@duocuc.cl")} 
+                  disabled={enviandoReporte}
+              >
               <Send className={`h-4 w-4 mr-2 ${enviandoReporte ? "animate-pulse" : ""}`} />
               {enviandoReporte ? "Enviando…" : "Enviar Reporte Ahora"}
             </Button>
