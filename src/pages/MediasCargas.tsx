@@ -1,10 +1,18 @@
 import { Loader2, RefreshCw } from "lucide-react";
 import { useInventario } from "@/hooks/useInventario";
+import { useHistorialAuditoria } from "@/hooks/useMediasCargas";
 import { Button } from "@/components/ui/button";
 import MediasCargaForm from "@/components/medias-cargas/MediasCargaForm";
+import HistorialTable from "@/components/medias-cargas/HistorialTable";
 
 export default function MediasCargas() {
   const { productos, cargando, error, refetch } = useInventario();
+  const { historial, cargando: cargandoHistorial, refetch: refetchHistorial } = useHistorialAuditoria();
+
+  function handleSuccess() {
+    refetch();
+    refetchHistorial();
+  }
 
   if (cargando && productos.length === 0) {
     return (
@@ -35,8 +43,9 @@ export default function MediasCargas() {
         </p>
       </div>
 
-      <div className="max-w-4xl">
-        <MediasCargaForm productos={productos} productosLoading={cargando} onSuccess={refetch} />
+      <div className="max-w-4xl space-y-8">
+        <MediasCargaForm productos={productos} productosLoading={cargando} onSuccess={handleSuccess} />
+        <HistorialTable historial={historial} cargando={cargandoHistorial} />
       </div>
     </div>
   );
