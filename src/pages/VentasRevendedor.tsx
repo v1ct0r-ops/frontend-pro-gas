@@ -3,6 +3,8 @@ import { Loader2, Plus, Trash2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useVentasRevendedor } from "@/hooks/useVentasRevendedor";
 import { useInventario } from "@/hooks/useInventario";
+import { VentasRevendedorTable } from "@/components/ventas-revendedor/VentasRevendedorTable";
+import { EditarVentaModal } from "@/components/ventas-revendedor/EditarVentaModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import type { Producto } from "@/types/api";
+import type { Producto, VentaRevendedor } from "@/types/api";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -62,9 +64,25 @@ const newLinea = (): LineaForm => ({ uid: ++_uid, productoId: "", cantidad: "", 
 // ─── Página ───────────────────────────────────────────────────────────────────
 
 export default function VentasRevendedor() {
-  const { registrarVenta, enviando, errorEnvio } = useVentasRevendedor();
+  const {
+    ventas,
+    total,
+    totalPages,
+    pagina,
+    setPagina,
+    setFiltros,
+    cargando: cargandoHistorial,
+    enviando,
+    errorCarga,
+    refetch,
+    crearVenta,
+    editarVenta,
+    eliminarVenta,
+    descargarPdf,
+  } = useVentasRevendedor();
   const { productos, cargando: cargandoProductos, refetch: refetchInventario } = useInventario();
 
+  // ── Estado del formulario de creación ─────────────────────────────────────
   const [rutCliente, setRutCliente] = useState("");
   const [nombreCliente, setNombreCliente] = useState("");
   const [descuentoPorKg, setDescuentoPorKg] = useState("");
@@ -76,6 +94,11 @@ export default function VentasRevendedor() {
     monto_descuento: number;
     total_bruto: number;
   } | null>(null);
+
+  // ── Estado de modales ─────────────────────────────────────────────────────
+  const [ventaParaEditar, setVentaParaEditar] = useState<VentaRevendedor | null>(null);
+  const [ventaParaEliminar, setVentaParaEliminar] = useState<VentaRevendedor | null>(null);
+  const [errorDialog, setErrorDialog] = useState<string | null>(null);
 
   // Calculo enriquecido de cada línea
   const lineasConCalculo: LineaCalculo[] = useMemo(
@@ -131,7 +154,7 @@ export default function VentasRevendedor() {
   }
 
   async function handleConfirmar() {
-    const resultado = await registrarVenta({
+    const resultado = await crearVenta({
       rut_cliente: rutCliente.trim(),
       nombre_cliente: nombreCliente.trim(),
       fecha: new Date().toISOString(),
@@ -146,7 +169,7 @@ export default function VentasRevendedor() {
       setUltimaVenta({
         id: resultado.id,
         kilos_totales: resultado.kilos_totales,
-        monto_descuento: resultado.monto_descuento,
+        monto_descuento: resultado.monto_descuento_total,
         total_bruto: resultado.total_bruto,
       });
       resetForm();
@@ -155,6 +178,18 @@ export default function VentasRevendedor() {
         description: `${fmtKg(resultado.kilos_totales)} · ${fmtCLP(resultado.total_bruto)} total bruto`,
       });
       refetchInventario();
+    }
+  }
+
+  async function handleEliminarConfirmar() {
+    if (!ventaParaEliminar) return;
+    setErrorDialog(null);
+    const ok = await eliminarVenta(ventaParaEliminar.id);
+    if (ok) {
+      setVentaParaEliminar(null);
+      toast.success(`Venta #${ventaParaEliminar.id} eliminada. Stock repuesto.`);
+    } else {
+      setErrorDialog("No se pudo eliminar. Intenta de nuevo.");
     }
   }
 
@@ -366,8 +401,6 @@ export default function VentasRevendedor() {
               </p>
             </div>
 
-            {errorEnvio && <p className="text-sm text-destructive">{errorEnvio}</p>}
-
             <Button
               onClick={() => setConfirmOpen(true)}
               disabled={!puedeConfirmar || enviando}
@@ -395,6 +428,29 @@ export default function VentasRevendedor() {
             )}
           </div>
         )}
+
+        {/* ══ HISTORIAL DE VENTAS ═══════════════════════════════════════════ */}
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Historial de ventas</h2>
+            <Button variant="ghost" size="sm" onClick={refetch} disabled={cargandoHistorial}>
+              <RefreshCw className={`h-3.5 w-3.5 ${cargandoHistorial ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
+          {errorCarga && <p className="text-sm text-destructive">{errorCarga}</p>}
+          <VentasRevendedorTable
+            ventas={ventas}
+            total={total}
+            pagina={pagina}
+            totalPages={totalPages}
+            cargando={cargandoHistorial}
+            onPageChange={setPagina}
+            onBuscar={setFiltros}
+            onEditar={(v) => setVentaParaEditar(v)}
+            onEliminar={(v) => { setErrorDialog(null); setVentaParaEliminar(v); }}
+            onDescargarPdf={descargarPdf}
+          />
+        </div>
       </div>
 
       {/* ══ ALERTDIALOG: Confirmar venta ════════════════════════════════════ */}
@@ -468,6 +524,49 @@ export default function VentasRevendedor() {
             <AlertDialogAction onClick={handleConfirmar} disabled={enviando}>
               {enviando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Confirmar y registrar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ══ MODAL: Editar venta ══════════════════════════════════════════════ */}
+      <EditarVentaModal
+        venta={ventaParaEditar}
+        enviando={enviando}
+        onClose={() => setVentaParaEditar(null)}
+        onGuardar={(id, payload) => editarVenta(id, payload)}
+      />
+
+      {/* ══ ALERTDIALOG: Eliminar venta ═════════════════════════════════════ */}
+      <AlertDialog
+        open={ventaParaEliminar !== null}
+        onOpenChange={(open) => { if (!open && !enviando) setVentaParaEliminar(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar esta venta?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="flex flex-col gap-2 text-sm">
+                {ventaParaEliminar && (
+                  <p className="text-muted-foreground">
+                    Se eliminará la venta <strong>#{ventaParaEliminar.id}</strong> de{" "}
+                    <strong>{ventaParaEliminar.nombre_cliente}</strong> y se repondrá el stock de
+                    cada producto. Esta acción no se puede deshacer.
+                  </p>
+                )}
+                {errorDialog && <p className="text-destructive">{errorDialog}</p>}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={enviando}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleEliminarConfirmar}
+              disabled={enviando}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {enviando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Eliminar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -11,7 +11,6 @@ import type { Producto } from "@/types/api";
 interface ItemForm {
   producto_id: string;
   cantidad_llenos: string;
-  cantidad_vacios: string;
   precio_neto: string;
 }
 
@@ -26,7 +25,6 @@ const IVA_RATE = 0.19;
 const ITEM_VACIO: ItemForm = {
   producto_id: "",
   cantidad_llenos: "",
-  cantidad_vacios: "",
   precio_neto: "",
 };
 
@@ -45,11 +43,11 @@ export default function MediasCargaForm({ productos, productosLoading, onSuccess
   const [items, setItems] = useState<ItemForm[]>([{ ...ITEM_VACIO }]);
 
   const totalNeto = items.reduce((sum, item) => {
-    const precio = parseFloat(item.precio_neto) || 0;
+    const precio = parseInt(item.precio_neto) || 0;
     const llenos = parseInt(item.cantidad_llenos) || 0;
     return sum + precio * llenos;
   }, 0);
-  const totalIVA = totalNeto * IVA_RATE;
+  const totalIVA = Math.round(totalNeto * IVA_RATE);
   const totalBruto = totalNeto + totalIVA;
 
   function actualizarItem(index: number, campo: keyof ItemForm, valor: string) {
@@ -71,21 +69,18 @@ export default function MediasCargaForm({ productos, productosLoading, onSuccess
     e.preventDefault();
 
     const itemsValidos = items.filter(
-      (item) =>
-        item.producto_id &&
-        (parseInt(item.cantidad_llenos) > 0 || parseInt(item.cantidad_vacios) > 0)
+      (item) => item.producto_id && parseInt(item.cantidad_llenos) >= 1
     );
     if (!numeroGuia.trim() || !proveedor.trim() || itemsValidos.length === 0) return;
 
     const payload = {
       numero_guia: numeroGuia.trim(),
-      fecha: new Date().toISOString().slice(0, 10),
       proveedor: proveedor.trim(),
+      fecha: new Date().toISOString().slice(0, 10),
       lineas: itemsValidos.map((item) => ({
         producto_id: parseInt(item.producto_id),
-        cantidad_llenos: parseInt(item.cantidad_llenos) || 0,
-        cantidad_vacios: parseInt(item.cantidad_vacios) || 0,
-        precio_unitario_neto: parseFloat(item.precio_neto) || 0,
+        cantidad_llenos: parseInt(item.cantidad_llenos),
+        precio_unitario_neto: parseInt(item.precio_neto) || 0,
       })),
     };
 
@@ -114,7 +109,7 @@ export default function MediasCargaForm({ productos, productosLoading, onSuccess
         <CardTitle className="text-lg">Registrar entrega de proveedor</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6" noValidate>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="numero_guia">N° de Guía</Label>
@@ -150,9 +145,6 @@ export default function MediasCargaForm({ productos, productosLoading, onSuccess
                     <th className="text-right px-3 py-2 font-medium text-muted-foreground w-28">
                       Llenos
                     </th>
-                    <th className="text-right px-3 py-2 font-medium text-muted-foreground w-28">
-                      Vacíos
-                    </th>
                     <th className="text-right px-3 py-2 font-medium text-muted-foreground w-36">
                       Precio neto $
                     </th>
@@ -167,10 +159,10 @@ export default function MediasCargaForm({ productos, productosLoading, onSuccess
                 </thead>
                 <tbody className="divide-y">
                   {items.map((item, i) => {
-                    const precioNeto = parseFloat(item.precio_neto) || 0;
+                    const precioNeto = parseInt(item.precio_neto) || 0;
                     const llenos = parseInt(item.cantidad_llenos) || 0;
                     const subtotalNeto = precioNeto * llenos;
-                    const iva = subtotalNeto * IVA_RATE;
+                    const iva = Math.round(subtotalNeto * IVA_RATE);
                     const subtotalBruto = subtotalNeto + iva;
 
                     return (
@@ -183,7 +175,11 @@ export default function MediasCargaForm({ productos, productosLoading, onSuccess
                             required
                           >
                             <option value="">
-                              {productosLoading ? "Cargando productos…" : productos.length === 0 ? "Sin productos disponibles" : "Seleccionar..."}
+                              {productosLoading
+                                ? "Cargando productos…"
+                                : productos.length === 0
+                                  ? "Sin productos disponibles"
+                                  : "Seleccionar..."}
                             </option>
                             {productos.map((p) => (
                               <option key={p.id} value={p.id}>
@@ -195,19 +191,9 @@ export default function MediasCargaForm({ productos, productosLoading, onSuccess
                         <td className="px-3 py-2">
                           <Input
                             type="number"
-                            min={0}
+                            min={1}
                             value={item.cantidad_llenos}
                             onChange={(e) => actualizarItem(i, "cantidad_llenos", e.target.value)}
-                            className="text-right"
-                            placeholder="0"
-                          />
-                        </td>
-                        <td className="px-3 py-2">
-                          <Input
-                            type="number"
-                            min={0}
-                            value={item.cantidad_vacios}
-                            onChange={(e) => actualizarItem(i, "cantidad_vacios", e.target.value)}
                             className="text-right"
                             placeholder="0"
                           />
@@ -253,7 +239,6 @@ export default function MediasCargaForm({ productos, productosLoading, onSuccess
             </Button>
           </div>
 
-          {/* Resumen de totales */}
           <div className="rounded-md bg-muted/50 px-4 py-3 space-y-1.5 text-sm">
             <div className="flex justify-between text-muted-foreground">
               <span>Subtotal neto</span>
