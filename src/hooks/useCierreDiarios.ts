@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import axios from "axios";
 import { toast } from "sonner";
 import {
   listarCierres,
@@ -6,6 +7,7 @@ import {
   editarCierre as svcEditar,
   cerrarCierre as svcCerrar,
   eliminarCierre as svcEliminar,
+  anularCierre as svcAnular,
   descargarPdfCierre,
 } from "@/services/cierresDiarios";
 import type {
@@ -15,7 +17,7 @@ import type {
   CierresDiariosListParams,
 } from "@/types/api";
 
-export const CIERRES_LIMIT = 20;
+const PAGE_SIZE = 5;
 
 function inicioHoy() {
   const d = new Date();
@@ -33,7 +35,8 @@ export function useCierreDiarios() {
   // ── Tabla paginada ────────────────────────────────────────────────────────
   const [cierres, setCierres] = useState<CierreDiario[]>([]);
   const [total, setTotal] = useState(0);
-  const [pagina, setPagina] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [page, setPage] = useState(1);
   const [filtros, setFiltrosInternal] = useState<CierresDiariosListParams>({});
 
   // ── Cierre abierto del día (para el formulario/card de sellado) ───────────
@@ -48,22 +51,21 @@ export function useCierreDiarios() {
   const [errorCarga, setErrorCarga] = useState<string | null>(null);
   const [errorEnvio, setErrorEnvio] = useState<string | null>(null);
 
-  const totalPages = Math.max(1, Math.ceil(total / CIERRES_LIMIT));
-
   // ── Fetch tabla ───────────────────────────────────────────────────────────
   const refetch = useCallback(async () => {
     setCargando(true);
     setErrorCarga(null);
     try {
-      const resp = await listarCierres({ ...filtros, page: pagina, limit: CIERRES_LIMIT });
+      const resp = await listarCierres({ ...filtros, page, page_size: PAGE_SIZE });
       setCierres(resp.items);
       setTotal(resp.total);
+      setTotalPages(resp.total_pages);
     } catch {
       setErrorCarga("No se pudo cargar los cierres diarios.");
     } finally {
       setCargando(false);
     }
-  }, [filtros, pagina]);
+  }, [filtros, page]);
 
   useEffect(() => {
     refetch();
@@ -76,7 +78,7 @@ export function useCierreDiarios() {
         fecha_desde: inicioHoy(),
         fecha_hasta: finHoy(),
         is_closed: false,
-        limit: 1,
+        page_size: 1,
       });
       setCierreAbiertoHoy(resp.items[0] ?? null);
     } catch {
@@ -91,7 +93,7 @@ export function useCierreDiarios() {
   // ── setFiltros: resetea la página al cambiar filtros ──────────────────────
   function setFiltros(nuevosFiltros: CierresDiariosListParams) {
     setFiltrosInternal(nuevosFiltros);
-    setPagina(1);
+    setPage(1);
   }
 
   // ── crearCierre ───────────────────────────────────────────────────────────
@@ -100,6 +102,7 @@ export function useCierreDiarios() {
     setErrorEnvio(null);
     try {
       const cierre = await svcCrear({ ...payload, fecha: new Date().toISOString() });
+      setPage(1);
       await Promise.all([refetch(), refetchHoy()]);
       return cierre;
     } catch {
@@ -158,6 +161,30 @@ export function useCierreDiarios() {
     }
   }
 
+  // ── anularCierre ──────────────────────────────────────────────────────────
+  async function anularCierre(id: number, motivo: string): Promise<boolean> {
+    setEnviando(true);
+    try {
+      await svcAnular(id, motivo);
+      await Promise.all([refetch(), refetchHoy()]);
+      return true;
+    } catch (err) {
+      const status = axios.isAxiosError(err) ? err.response?.status : undefined;
+      if (status === 409) {
+        toast.error("Solo puedes anular el último cierre registrado.");
+      } else if (status === 400) {
+        toast.error("Anulación imposible: stock insuficiente para revertir el inventario.");
+      } else if (status === 403) {
+        toast.error("No tienes permiso para anular cierres sellados.");
+      } else {
+        toast.error("No se pudo anular el cierre.");
+      }
+      return false;
+    } finally {
+      setEnviando(false);
+    }
+  }
+
   // ── descargarPdf ──────────────────────────────────────────────────────────
   async function descargarPdf(id: number): Promise<void> {
     try {
@@ -172,8 +199,8 @@ export function useCierreDiarios() {
     cierres,
     total,
     totalPages,
-    pagina,
-    setPagina,
+    page,
+    setPage,
     filtros,
     setFiltros,
     // Hoy
@@ -189,6 +216,7 @@ export function useCierreDiarios() {
     editarCierre,
     cerrarCierre,
     eliminarCierre,
+    anularCierre,
     descargarPdf,
   };
 }

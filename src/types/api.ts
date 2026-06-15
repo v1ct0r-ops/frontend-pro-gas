@@ -198,6 +198,10 @@ export interface CierreDiario {
   created_at: string;
   closed_at: string | null;
   cerrado_por_id: number | null;
+  anulado: boolean;
+  anulado_at: string | null;
+  anulado_por_id: number | null;
+  motivo_anulacion: string | null;
 }
 
 export interface LineaMovimientoCierre {
@@ -230,8 +234,9 @@ export interface CierresDiariosListParams {
   fecha_hasta?: string;
   chofer?: string;
   is_closed?: boolean;
+  incluir_anulados?: boolean;
   page?: number;
-  limit?: number;
+  page_size?: number;
 }
 
 export interface CerrarCierrePayload {

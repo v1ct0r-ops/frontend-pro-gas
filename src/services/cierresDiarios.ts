@@ -4,15 +4,15 @@ import type {
   CierreDiarioCreate,
   CierreDiarioUpdate,
   CierresDiariosListParams,
-  PaginatedResponse,
+  Paginated,
 } from "@/types/api";
 
 const BASE = "/api/v1/cierres-diarios";
 
 export async function listarCierres(
   params?: CierresDiariosListParams
-): Promise<PaginatedResponse<CierreDiario>> {
-  const { data } = await apiClient.get<PaginatedResponse<CierreDiario>>(`${BASE}/`, { params });
+): Promise<Paginated<CierreDiario>> {
+  const { data } = await apiClient.get<Paginated<CierreDiario>>(`${BASE}/`, { params });
   return data;
 }
 
@@ -38,6 +38,13 @@ export async function cerrarCierre(id: number): Promise<CierreDiario> {
 
 export async function eliminarCierre(id: number): Promise<void> {
   await apiClient.delete(`${BASE}/${id}`);
+}
+
+export async function anularCierre(id: number, motivo: string): Promise<CierreDiario> {
+  const { data } = await apiClient.patch<CierreDiario>(`${BASE}/${id}/anular`, {
+    motivo_anulacion: motivo,
+  });
+  return data;
 }
 
 export async function descargarPdfCierre(id: number): Promise<void> {
