@@ -4,15 +4,15 @@ import type {
   VentaRevendedorCreate,
   VentaRevendedorPatch,
   VentasRevendedorListParams,
-  PaginatedResponse,
+  Paginated,
 } from "@/types/api";
 
 const BASE = "/api/v1/ventas-revendedor";
 
 export async function listarVentasRevendedor(
   params?: VentasRevendedorListParams
-): Promise<PaginatedResponse<VentaRevendedor>> {
-  const { data } = await apiClient.get<PaginatedResponse<VentaRevendedor>>(`${BASE}/`, { params });
+): Promise<Paginated<VentaRevendedor>> {
+  const { data } = await apiClient.get<Paginated<VentaRevendedor>>(`${BASE}/`, { params });
   return data;
 }
 

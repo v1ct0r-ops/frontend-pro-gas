@@ -30,11 +30,45 @@ export interface UsuarioCreate {
 }
 
 export interface UsuarioUpdate {
+  nombre?: string;
+  email?: string;
+  password?: string;
+  rol?: Rol;
+  estado?: boolean;
+}
+
+// ─── Clientes (Maestro) ────────────────────────────────────────────────────────
+
+export interface Cliente {
+  id: number;
+  rut: string;
   nombre: string;
-  email: string;
-  password: string;
-  rol: Rol;
+  email: string | null;
+  telefono: string | null;
+  direccion: string | null;
+  descuento_pesos_por_kilo: number;
   estado: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClienteCreate {
+  rut: string;
+  nombre: string;
+  email?: string;
+  telefono?: string;
+  direccion?: string;
+  descuento_pesos_por_kilo?: number;
+}
+
+export interface ClienteUpdate {
+  rut?: string;
+  nombre?: string;
+  email?: string | null;
+  telefono?: string | null;
+  direccion?: string | null;
+  descuento_pesos_por_kilo?: number;
+  estado?: boolean;
 }
 
 // ─── Inventario ──────────────────────────────────────────────────────────────

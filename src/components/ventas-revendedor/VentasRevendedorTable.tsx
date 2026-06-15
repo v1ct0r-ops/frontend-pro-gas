@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, FileDown, Loader2, Pencil, Trash2 } from "lucide-react";
+import { FileDown, Loader2, Pencil, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { VENTAS_REVENDEDOR_LIMIT } from "@/hooks/useVentasRevendedor";
+import { Pagination } from "@/components/ui/Pagination";
 import type { VentaRevendedor, VentasRevendedorListParams } from "@/types/api";
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
@@ -38,8 +38,7 @@ function formatFechaCorta(iso: string) {
 
 interface Props {
   ventas: VentaRevendedor[];
-  total: number;
-  pagina: number;
+  page: number;
   totalPages: number;
   cargando: boolean;
   onPageChange: (page: number) => void;
@@ -53,8 +52,7 @@ interface Props {
 
 export function VentasRevendedorTable({
   ventas,
-  total,
-  pagina,
+  page,
   totalPages,
   cargando,
   onPageChange,
@@ -85,9 +83,6 @@ export function VentasRevendedorTable({
     setFiltroRut("");
     onBuscar({});
   }
-
-  const inicio = (pagina - 1) * VENTAS_REVENDEDOR_LIMIT + 1;
-  const fin = Math.min(pagina * VENTAS_REVENDEDOR_LIMIT, total);
 
   return (
     <div className="flex flex-col gap-3">
@@ -266,36 +261,7 @@ export function VentasRevendedorTable({
           </div>
 
           {/* ── Paginación ──────────────────────────────────────────────── */}
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <span>
-              {total > 0
-                ? `${inicio}–${fin} de ${total} venta${total !== 1 ? "s" : ""}`
-                : "Sin resultados"}
-            </span>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 w-7 p-0"
-                onClick={() => onPageChange(pagina - 1)}
-                disabled={pagina <= 1}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="px-2 tabular-nums">
-                {pagina} / {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 w-7 p-0"
-                onClick={() => onPageChange(pagina + 1)}
-                disabled={pagina >= totalPages}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+          <Pagination page={page} totalPages={totalPages} onPageChange={onPageChange} />
         </>
       )}
     </div>

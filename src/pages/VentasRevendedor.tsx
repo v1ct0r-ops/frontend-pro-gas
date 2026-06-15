@@ -5,6 +5,7 @@ import { useVentasRevendedor } from "@/hooks/useVentasRevendedor";
 import { useInventario } from "@/hooks/useInventario";
 import { VentasRevendedorTable } from "@/components/ventas-revendedor/VentasRevendedorTable";
 import { EditarVentaModal } from "@/components/ventas-revendedor/EditarVentaModal";
+import { ClienteAutocomplete } from "@/components/ventas-revendedor/ClienteAutocomplete";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -217,6 +218,13 @@ export default function VentasRevendedor() {
             <CardTitle className="text-base">Datos del cliente</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
+            <ClienteAutocomplete
+              onSelect={(c) => {
+                setRutCliente(c.rut);
+                setNombreCliente(c.nombre);
+                setDescuentoPorKg(String(c.descuento_pesos_por_kilo ?? 0));
+              }}
+            />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="rut-cliente">RUT del cliente</Label>
