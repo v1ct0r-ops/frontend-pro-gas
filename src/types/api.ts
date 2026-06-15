@@ -230,7 +230,7 @@ export interface VentasRevendedorListParams {
   fecha_hasta?: string;
   rut_cliente?: string;
   page?: number;
-  limit?: number;
+  page_size?: number;
 }
 
 export interface VentaRevendedorLinea {
@@ -263,9 +263,12 @@ export interface VentaRevendedor {
 
 // ─── Paginación genérica ──────────────────────────────────────────────────────
 
-export interface PaginatedResponse<T> {
+// Envelope server-side idéntico en todos los endpoints paginados.
+// Los campos respetan el casing snake_case tal como llegan del backend.
+export interface Paginated<T> {
   items: T[];
   total: number;
-  page?: number;
-  size?: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
 }

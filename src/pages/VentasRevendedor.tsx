@@ -66,10 +66,9 @@ const newLinea = (): LineaForm => ({ uid: ++_uid, productoId: "", cantidad: "", 
 export default function VentasRevendedor() {
   const {
     ventas,
-    total,
     totalPages,
-    pagina,
-    setPagina,
+    page,
+    setPage,
     setFiltros,
     cargando: cargandoHistorial,
     enviando,
@@ -440,11 +439,10 @@ export default function VentasRevendedor() {
           {errorCarga && <p className="text-sm text-destructive">{errorCarga}</p>}
           <VentasRevendedorTable
             ventas={ventas}
-            total={total}
-            pagina={pagina}
+            page={page}
             totalPages={totalPages}
             cargando={cargandoHistorial}
-            onPageChange={setPagina}
+            onPageChange={setPage}
             onBuscar={setFiltros}
             onEditar={(v) => setVentaParaEditar(v)}
             onEliminar={(v) => { setErrorDialog(null); setVentaParaEliminar(v); }}
