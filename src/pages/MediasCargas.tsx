@@ -7,7 +7,7 @@ import HistorialTable from "@/components/medias-cargas/HistorialTable";
 
 export default function MediasCargas() {
   const { productos, cargando, error, refetch } = useInventario();
-  const { historial, cargando: cargandoHistorial, refetch: refetchHistorial } = useHistorialAuditoria();
+  const { historial, cargando: cargandoHistorial, refetch: refetchHistorial, anular, anulando } = useHistorialAuditoria();
 
   function handleSuccess() {
     refetch();
@@ -45,7 +45,7 @@ export default function MediasCargas() {
 
       <div className="max-w-4xl space-y-8">
         <MediasCargaForm productos={productos} productosLoading={cargando} onSuccess={handleSuccess} />
-        <HistorialTable historial={historial} cargando={cargandoHistorial} />
+        <HistorialTable historial={historial} cargando={cargandoHistorial} anular={anular} anulando={anulando} />
       </div>
     </div>
   );

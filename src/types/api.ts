@@ -149,6 +149,7 @@ export interface HistorialAuditoria {
   fecha_registro: string;
   registrado_por_id: number;
   registrado_por_nombre: string;
+  anulada: boolean;
   lineas: LineaHistorial[];
 }
 

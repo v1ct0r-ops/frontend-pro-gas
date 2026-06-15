@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { crearMediaCarga as crearMediaCargaApi, listarHistorial } from "@/services/mediasCargas";
+import { crearMediaCarga as crearMediaCargaApi, listarHistorial, anularMediaCarga as anularMediaCargaApi } from "@/services/mediasCargas";
 import type { MediaCargaCreate, HistorialAuditoria } from "@/types/api";
 
 export function useMediasCargas() {
@@ -28,6 +28,7 @@ export function useHistorialAuditoria() {
   const [historial, setHistorial] = useState<HistorialAuditoria[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [anulando, setAnulando] = useState<Set<number>>(new Set());
 
   const refetch = useCallback(async () => {
     setCargando(true);
@@ -44,5 +45,26 @@ export function useHistorialAuditoria() {
 
   useEffect(() => { refetch(); }, [refetch]);
 
-  return { historial, cargando, error, refetch };
+  const anular = useCallback(
+    async (mediaCargaId: number): Promise<{ ok: boolean; status?: number; detail?: string }> => {
+      setAnulando((prev) => new Set(prev).add(mediaCargaId));
+      try {
+        await anularMediaCargaApi(mediaCargaId);
+        await refetch();
+        return { ok: true };
+      } catch (err) {
+        const e = err as { response?: { status?: number; data?: { detail?: string } } };
+        return { ok: false, status: e.response?.status, detail: e.response?.data?.detail };
+      } finally {
+        setAnulando((prev) => {
+          const next = new Set(prev);
+          next.delete(mediaCargaId);
+          return next;
+        });
+      }
+    },
+    [refetch],
+  );
+
+  return { historial, cargando, error, refetch, anular, anulando };
 }
