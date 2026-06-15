@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -6,8 +7,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Pagination } from "@/components/ui/Pagination";
 import type { Rol, Usuario, UsuarioCreate, UsuarioUpdate } from "@/types/api";
-import { UserPlus, Pencil, X } from "lucide-react";
+import { UserPlus, Pencil, X, UserX, UserCheck, Trash2 } from "lucide-react";
 
 const ROLES: Rol[] = ["operador", "super_admin"];
 
@@ -30,8 +42,20 @@ const FORM_VACIO: FormState = {
 };
 
 export default function Usuarios() {
-  const { usuarios, cargando, error, crearUsuario, editarUsuario } = useUsuarios();
-  const { hasRole } = useAuth();
+  const {
+    usuarios,
+    totalPages,
+    page,
+    setPage,
+    cargando,
+    error,
+    crearUsuario,
+    editarUsuario,
+    eliminarUsuario,
+    toggleEstado,
+    extractBackendMessage,
+  } = useUsuarios();
+  const { user, hasRole } = useAuth();
   const esSuperAdmin = hasRole("super_admin");
 
   const [panelAbierto, setPanelAbierto] = useState(false);
@@ -40,6 +64,8 @@ export default function Usuarios() {
   const [form, setForm] = useState<FormState>(FORM_VACIO);
   const [loading, setLoading] = useState(false);
   const [errorForm, setErrorForm] = useState<string | null>(null);
+  const [usuarioAEliminar, setUsuarioAEliminar] = useState<Usuario | null>(null);
+  const [loadingAccion, setLoadingAccion] = useState<number | null>(null);
 
   function abrirCrear() {
     setModo("crear");
@@ -101,17 +127,48 @@ export default function Usuarios() {
         const payload: UsuarioUpdate = {
           nombre: form.nombre.trim(),
           email: form.email.trim(),
-          password: form.password,
           rol: form.rol,
           estado: form.estado,
         };
+        if (form.password.trim() !== "") {
+          payload.password = form.password;
+        }
         await editarUsuario(usuarioEditando.id, payload);
       }
       cerrarPanel();
-    } catch {
-      setErrorForm("Ocurrió un error. Verifica los datos e intenta nuevamente.");
+    } catch (err: unknown) {
+      const backendMsg = extractBackendMessage(err);
+      setErrorForm(backendMsg || "Ocurrió un error. Verifica los datos e intenta nuevamente.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleToggleEstado(u: Usuario) {
+    setLoadingAccion(u.id);
+    try {
+      await toggleEstado(u);
+      toast.success(u.estado ? `${u.nombre} inhabilitado.` : `${u.nombre} reactivado.`);
+    } catch (err: unknown) {
+      const backendMsg = extractBackendMessage(err);
+      toast.error(backendMsg || "No se pudo cambiar el estado del usuario.");
+    } finally {
+      setLoadingAccion(null);
+    }
+  }
+
+  async function handleEliminar() {
+    if (!usuarioAEliminar) return;
+    setLoadingAccion(usuarioAEliminar.id);
+    try {
+      await eliminarUsuario(usuarioAEliminar.id);
+      toast.success(`Usuario ${usuarioAEliminar.nombre} eliminado.`);
+    } catch (err: unknown) {
+      const backendMsg = extractBackendMessage(err);
+      toast.error(backendMsg || "No se pudo eliminar el usuario.");
+    } finally {
+      setLoadingAccion(null);
+      setUsuarioAEliminar(null);
     }
   }
 
@@ -132,7 +189,6 @@ export default function Usuarios() {
         )}
       </div>
 
-      {/* Panel lateral de formulario */}
       {panelAbierto && (
         <Card className="border-primary/40">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -169,7 +225,9 @@ export default function Usuarios() {
                   <Label htmlFor="password">
                     Contraseña
                     {modo === "editar" && (
-                      <span className="text-muted-foreground font-normal ml-1">(dejar vacío para no cambiar)</span>
+                      <span className="text-muted-foreground font-normal ml-1">
+                        (dejar vacío para no cambiar)
+                      </span>
                     )}
                   </Label>
                   <Input
@@ -228,7 +286,6 @@ export default function Usuarios() {
         </Card>
       )}
 
-      {/* Tabla de usuarios */}
       <Card>
         <CardContent className="p-0">
           {cargando ? (
@@ -256,40 +313,97 @@ export default function Usuarios() {
                   </tr>
                 </thead>
                 <tbody>
-                  {usuarios.map((u) => (
-                    <tr key={u.id} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
-                      <td className="px-4 py-3 font-medium">{u.nombre}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{u.email}</td>
-                      <td className="px-4 py-3">
-                        <Badge variant={u.rol === "super_admin" ? "default" : "secondary"}>
-                          {u.rol === "super_admin" ? "Super Admin" : "Operador"}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant={u.estado ? "outline" : "destructive"}>
-                          {u.estado ? "Activo" : "Inactivo"}
-                        </Badge>
-                      </td>
-                      {esSuperAdmin && (
-                        <td className="px-4 py-3 text-right">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => abrirEditar(u)}
-                            aria-label={`Editar ${u.nombre}`}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
+                  {usuarios.map((u) => {
+                    const esMismaSesion = u.id === user?.id;
+                    const ocupado = loadingAccion === u.id;
+                    return (
+                      <tr key={u.id} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
+                        <td className="px-4 py-3 font-medium">{u.nombre}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{u.email}</td>
+                        <td className="px-4 py-3">
+                          <Badge variant={u.rol === "super_admin" ? "default" : "secondary"}>
+                            {u.rol === "super_admin" ? "Super Admin" : "Operador"}
+                          </Badge>
                         </td>
-                      )}
-                    </tr>
-                  ))}
+                        <td className="px-4 py-3">
+                          <Badge variant={u.estado ? "outline" : "destructive"}>
+                            {u.estado ? "Activo" : "Inactivo"}
+                          </Badge>
+                        </td>
+                        {esSuperAdmin && (
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => abrirEditar(u)}
+                                aria-label={`Editar ${u.nombre}`}
+                                disabled={ocupado}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleToggleEstado(u)}
+                                disabled={esMismaSesion || ocupado}
+                                aria-label={u.estado ? `Inhabilitar ${u.nombre}` : `Reactivar ${u.nombre}`}
+                                title={esMismaSesion ? "No puedes inhabilitar tu propia cuenta" : undefined}
+                              >
+                                {u.estado ? (
+                                  <UserX className="h-4 w-4 text-amber-500" />
+                                ) : (
+                                  <UserCheck className="h-4 w-4 text-emerald-500" />
+                                )}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setUsuarioAEliminar(u)}
+                                disabled={esMismaSesion || ocupado}
+                                aria-label={`Eliminar ${u.nombre}`}
+                                title={esMismaSesion ? "No puedes eliminar tu propia cuenta" : undefined}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           )}
         </CardContent>
       </Card>
+
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+
+      <AlertDialog
+        open={!!usuarioAEliminar}
+        onOpenChange={(open) => { if (!open) setUsuarioAEliminar(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar usuario?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará a <strong>{usuarioAEliminar?.nombre}</strong> del sistema.
+              Si tiene registros asociados, la operación puede ser rechazada por el backend.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleEliminar}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
