@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Edit2, Check, X, Loader2 } from "lucide-react";
+import { Edit2, Check, X, Loader2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 import apiClient from "@/lib/api";
@@ -30,6 +30,11 @@ interface AjusteForm {
   guardando: boolean;
 }
 
+interface PrecioForm {
+  valor: string;
+  guardando: boolean;
+}
+
 interface CilindroCardProps {
   producto: Producto;
   // Llamado después de guardar un ajuste exitoso para refrescar la grilla
@@ -51,6 +56,11 @@ export default function CilindroCard({ producto, onAjusteGuardado }: CilindroCar
     motivo: "",
     guardando: false,
   });
+
+  const [editandoPrecio, setEditandoPrecio] = useState(false);
+  const [precioForm, setPrecioForm] = useState<PrecioForm>({ valor: "", guardando: false });
+
+  const modoNeutro = !editando && !editandoPrecio;
 
   function abrirAjuste() {
     setAjuste({ llenos: "0", vacios: "0", motivo: "", guardando: false });
@@ -94,8 +104,38 @@ export default function CilindroCard({ producto, onAjusteGuardado }: CilindroCar
     }
   }
 
+  function abrirEditarPrecio() {
+    setPrecioForm({
+      valor: producto.precio_publico_base != null ? String(producto.precio_publico_base) : "",
+      guardando: false,
+    });
+    setEditandoPrecio(true);
+  }
+
+  function cerrarEditarPrecio() {
+    setEditandoPrecio(false);
+  }
+
+  async function guardarPrecio() {
+    const valor = parseInt(precioForm.valor, 10);
+    if (isNaN(valor) || valor < 0) {
+      toast.error("Ingresa un precio válido (número entero ≥ 0).");
+      return;
+    }
+    setPrecioForm((p) => ({ ...p, guardando: true }));
+    try {
+      await apiClient.patch(`/api/v1/inventario/${producto.id}/precio`, { precio_publico_base: valor });
+      toast.success("Precio actualizado correctamente.");
+      cerrarEditarPrecio();
+      await onAjusteGuardado();
+    } catch {
+      toast.error("Error al guardar el precio. Intenta de nuevo.");
+      setPrecioForm((p) => ({ ...p, guardando: false }));
+    }
+  }
+
   return (
-    <Card className={`overflow-hidden transition-shadow ${editando ? "ring-2 ring-primary shadow-md" : "hover:shadow-md"}`}>
+    <Card className={`overflow-hidden transition-shadow ${(editando || editandoPrecio) ? "ring-2 ring-primary shadow-md" : "hover:shadow-md"}`}>
       {/* Barra de color identificadora del formato */}
       <div className={`h-2 w-full ${barraColor(producto)}`} />
 
@@ -122,18 +162,30 @@ export default function CilindroCard({ producto, onAjusteGuardado }: CilindroCar
           </div>
         </div>
 
-        {/* Precio público — muestra "—" si el campo no viene en la respuesta */}
-        <div className="text-center">
-          <p className="text-xs text-muted-foreground">Precio público</p>
-          <p className="text-sm font-medium">
-            {producto.precio_publico_base != null
-              ? `$${producto.precio_publico_base.toLocaleString("es-CL")}`
-              : "—"}
-          </p>
+        {/* Precio público */}
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs text-muted-foreground">Precio público</p>
+            <p className="text-sm font-medium">
+              {producto.precio_publico_base != null
+                ? `$${producto.precio_publico_base.toLocaleString("es-CL")}`
+                : "—"}
+            </p>
+          </div>
+          {esSuperAdmin && modoNeutro && (
+            <button
+              type="button"
+              onClick={abrirEditarPrecio}
+              className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted"
+              aria-label="Editar precio"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
 
-        {/* Botón de ajuste — solo rol super_admin */}
-        {esSuperAdmin && !editando && (
+        {/* Botón de ajuste de stock — solo modo neutro */}
+        {esSuperAdmin && modoNeutro && (
           <Button
             variant="outline"
             size="sm"
@@ -204,6 +256,50 @@ export default function CilindroCard({ producto, onAjusteGuardado }: CilindroCar
                 className="min-h-[44px] min-w-[44px]"
                 disabled={ajuste.guardando}
                 onClick={cerrarAjuste}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Panel de edición de precio */}
+        {esSuperAdmin && editandoPrecio && (
+          <div className="flex flex-col gap-2 pt-2 border-t">
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs">Precio público base (CLP)</Label>
+              <Input
+                type="number"
+                inputMode="numeric"
+                min="0"
+                value={precioForm.valor}
+                onChange={(e) => setPrecioForm((p) => ({ ...p, valor: e.target.value }))}
+                className="h-9 text-sm text-right tabular-nums"
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-2 mt-1">
+              <Button
+                size="sm"
+                className="flex-1 min-h-[44px]"
+                disabled={precioForm.guardando}
+                onClick={guardarPrecio}
+              >
+                {precioForm.guardando ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Check className="mr-1 h-4 w-4" />
+                    Guardar
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="min-h-[44px] min-w-[44px]"
+                disabled={precioForm.guardando}
+                onClick={cerrarEditarPrecio}
               >
                 <X className="h-4 w-4" />
               </Button>
