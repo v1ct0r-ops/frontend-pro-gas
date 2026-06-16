@@ -30,11 +30,45 @@ export interface UsuarioCreate {
 }
 
 export interface UsuarioUpdate {
+  nombre?: string;
+  email?: string;
+  password?: string;
+  rol?: Rol;
+  estado?: boolean;
+}
+
+// ─── Clientes (Maestro) ────────────────────────────────────────────────────────
+
+export interface Cliente {
+  id: number;
+  rut: string;
   nombre: string;
-  email: string;
-  password: string;
-  rol: Rol;
+  email: string | null;
+  telefono: string | null;
+  direccion: string | null;
+  descuento_pesos_por_kilo: number;
   estado: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClienteCreate {
+  rut: string;
+  nombre: string;
+  email?: string;
+  telefono?: string;
+  direccion?: string;
+  descuento_pesos_por_kilo?: number;
+}
+
+export interface ClienteUpdate {
+  rut?: string;
+  nombre?: string;
+  email?: string | null;
+  telefono?: string | null;
+  direccion?: string | null;
+  descuento_pesos_por_kilo?: number;
+  estado?: boolean;
 }
 
 // ─── Inventario ──────────────────────────────────────────────────────────────
@@ -115,6 +149,7 @@ export interface HistorialAuditoria {
   fecha_registro: string;
   registrado_por_id: number;
   registrado_por_nombre: string;
+  anulada: boolean;
   lineas: LineaHistorial[];
 }
 
@@ -163,6 +198,10 @@ export interface CierreDiario {
   created_at: string;
   closed_at: string | null;
   cerrado_por_id: number | null;
+  anulado: boolean;
+  anulado_at: string | null;
+  anulado_por_id: number | null;
+  motivo_anulacion: string | null;
 }
 
 export interface LineaMovimientoCierre {
@@ -195,8 +234,9 @@ export interface CierresDiariosListParams {
   fecha_hasta?: string;
   chofer?: string;
   is_closed?: boolean;
+  incluir_anulados?: boolean;
   page?: number;
-  limit?: number;
+  page_size?: number;
 }
 
 export interface CerrarCierrePayload {
@@ -230,7 +270,7 @@ export interface VentasRevendedorListParams {
   fecha_hasta?: string;
   rut_cliente?: string;
   page?: number;
-  limit?: number;
+  page_size?: number;
 }
 
 export interface VentaRevendedorLinea {
@@ -263,9 +303,12 @@ export interface VentaRevendedor {
 
 // ─── Paginación genérica ──────────────────────────────────────────────────────
 
-export interface PaginatedResponse<T> {
+// Envelope server-side idéntico en todos los endpoints paginados.
+// Los campos respetan el casing snake_case tal como llegan del backend.
+export interface Paginated<T> {
   items: T[];
   total: number;
-  page?: number;
-  size?: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
 }

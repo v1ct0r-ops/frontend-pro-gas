@@ -8,6 +8,7 @@ import {
   Calculator,
   Receipt,
   Users,
+  Contact,
   LogOut,
   Menu,
   X,
@@ -21,13 +22,14 @@ const NAV_GENERAL = [
   { to: "/dashboard",       label: "Dashboard",                              icon: LayoutDashboard },
   { to: "/inventario",      label: "Inventario",                             icon: Package         },
   { to: "/bitacora",        label: "Registro pedidos recibidos en local",    icon: Phone           },
-  { to: "/medias-cargas",   label: "Medias Cargas (ingresos de galones)",    icon: Truck           },
-  { to: "/cierres-diarios", label: "Cierres Diarios",                        icon: Calculator      },
+  { to: "/medias-cargas",   label: "Medias cargas (ingresos de galones)",    icon: Truck           },
+  { to: "/cierres-diarios", label: "Cierres diarios",                        icon: Calculator      },
 ];
 
 // Módulos exclusivos de super_admin
 const NAV_ADMIN = [
-  { to: "/ventas-revendedor", label: "Ventas a Revendedor", icon: Receipt },
+  { to: "/ventas-revendedor", label: "Ventas a revendedor", icon: Receipt },
+  { to: "/clientes",          label: "Clientes revendedores",            icon: Contact },
   { to: "/usuarios",          label: "Usuarios",            icon: Users   },
 ];
 
