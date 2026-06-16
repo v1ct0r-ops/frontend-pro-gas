@@ -14,7 +14,7 @@ import type {
   VentasRevendedorListParams,
 } from "@/types/api";
 
-export const VENTAS_REVENDEDOR_LIMIT = 20;
+const PAGE_SIZE = 5;
 
 type PydanticError = { msg?: string };
 
@@ -22,15 +22,14 @@ export function useVentasRevendedor() {
   // ── Lista paginada ────────────────────────────────────────────────────────
   const [ventas, setVentas] = useState<VentaRevendedor[]>([]);
   const [total, setTotal] = useState(0);
-  const [pagina, setPagina] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [page, setPage] = useState(1);
   const [filtros, setFiltrosInternal] = useState<VentasRevendedorListParams>({});
 
   // ── Estados async ─────────────────────────────────────────────────────────
   const [cargando, setCargando] = useState(true);
   const [enviando, setEnviando] = useState(false);
   const [errorCarga, setErrorCarga] = useState<string | null>(null);
-
-  const totalPages = Math.max(1, Math.ceil(total / VENTAS_REVENDEDOR_LIMIT));
 
   // ── Fetch lista ───────────────────────────────────────────────────────────
   const refetch = useCallback(async () => {
@@ -39,17 +38,18 @@ export function useVentasRevendedor() {
     try {
       const resp = await listarVentasRevendedor({
         ...filtros,
-        page: pagina,
-        limit: VENTAS_REVENDEDOR_LIMIT,
+        page,
+        page_size: PAGE_SIZE,
       });
       setVentas(resp.items);
       setTotal(resp.total);
+      setTotalPages(resp.total_pages);
     } catch {
       setErrorCarga("No se pudo cargar el historial de ventas.");
     } finally {
       setCargando(false);
     }
-  }, [filtros, pagina]);
+  }, [filtros, page]);
 
   useEffect(() => {
     refetch();
@@ -57,7 +57,7 @@ export function useVentasRevendedor() {
 
   function setFiltros(nuevos: VentasRevendedorListParams) {
     setFiltrosInternal(nuevos);
-    setPagina(1);
+    setPage(1);
   }
 
   // ── crearVenta ────────────────────────────────────────────────────────────
@@ -65,6 +65,7 @@ export function useVentasRevendedor() {
     setEnviando(true);
     try {
       const venta = await svcCrear(payload);
+      setPage(1);
       await refetch();
       return venta;
     } catch (err: unknown) {
@@ -127,8 +128,8 @@ export function useVentasRevendedor() {
     ventas,
     total,
     totalPages,
-    pagina,
-    setPagina,
+    page,
+    setPage,
     filtros,
     setFiltros,
     cargando,

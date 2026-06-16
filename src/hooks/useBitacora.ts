@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import apiClient from "@/lib/api";
-import type { LlamadaCreate, LlamadaRegistro } from "@/types/api";
+import type { LlamadaCreate, LlamadaRegistro, Paginated } from "@/types/api";
 
 export function useBitacora() {
   const [llamadas, setLlamadas] = useState<LlamadaRegistro[]>([]);
@@ -13,11 +13,11 @@ export function useBitacora() {
     setCargando(true);
     setErrorCarga(null);
     try {
-      const { data } = await apiClient.get<LlamadaRegistro[] | { items: LlamadaRegistro[] }>(
-        "/api/v1/bitacora/"
-      );
-      const lista = Array.isArray(data) ? data : data.items;
-      setLlamadas(lista.sort((a, b) => b.id - a.id));
+      // page_size=100: lista completa temporal; migrar a paginación server-side + filtros cuando supere ~100 filas
+      const { data } = await apiClient.get<Paginated<LlamadaRegistro>>("/api/v1/bitacora/", {
+        params: { page_size: 100 },
+      });
+      setLlamadas([...data.items].sort((a, b) => b.id - a.id));
     } catch {
       setErrorCarga("No se pudo cargar la bitácora.");
     } finally {

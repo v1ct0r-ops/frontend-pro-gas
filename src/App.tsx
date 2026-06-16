@@ -9,6 +9,7 @@ import Bitacora from "@/pages/Bitacora";
 import CierresDiarios from "@/pages/CierresDiarios";
 import VentasRevendedor from "@/pages/VentasRevendedor";
 import Usuarios from "@/pages/Usuarios";
+import Clientes from "@/pages/Clientes";
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
           {/* Rutas exclusivas de super_admin */}
           <Route element={<ProtectedRoute requiredRole="super_admin" />}>
             <Route path="/ventas-revendedor" element={<VentasRevendedor />} />
+            <Route path="/clientes" element={<Clientes />} />
             <Route path="/usuarios" element={<Usuarios />} />
           </Route>
         </Route>

@@ -1,9 +1,9 @@
-import { ChevronLeft, ChevronRight, FileDown, Loader2, Lock, Pencil, Trash2 } from "lucide-react";
+import { Ban, FileDown, Loader2, Lock, Pencil, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/Pagination";
 import type { CierreDiario, EstadoCuadre } from "@/types/api";
-import { CIERRES_LIMIT } from "@/hooks/useCierreDiarios";
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
 
@@ -56,14 +56,14 @@ function CuadreBadge({ estado }: { estado: EstadoCuadre }) {
 
 interface Props {
   cierres: CierreDiario[];
-  total: number;
-  pagina: number;
+  page: number;
   totalPages: number;
   cargando: boolean;
   onPageChange: (page: number) => void;
   onEditar: (cierre: CierreDiario) => void;
   onCerrar: (cierre: CierreDiario) => void;
   onEliminar: (cierre: CierreDiario) => void;
+  onAnular: (cierre: CierreDiario) => void;
   onDescargarPdf: (id: number) => void;
 }
 
@@ -71,21 +71,18 @@ interface Props {
 
 export function CierresDiariosTable({
   cierres,
-  total,
-  pagina,
+  page,
   totalPages,
   cargando,
   onPageChange,
   onEditar,
   onCerrar,
   onEliminar,
+  onAnular,
   onDescargarPdf,
 }: Props) {
   const { hasRole } = useAuth();
   const esSuperAdmin = hasRole("super_admin");
-
-  const inicio = (pagina - 1) * CIERRES_LIMIT + 1;
-  const fin = Math.min(pagina * CIERRES_LIMIT, total);
 
   if (cargando && cierres.length === 0) {
     return (
@@ -122,7 +119,6 @@ export function CierresDiariosTable({
           <tbody className="divide-y">
             {cierres.map((c) => {
               const rendido = c.efectivo_rendido + c.vouchers_transbank;
-              const esEditable = !c.is_closed;
 
               return (
                 <tr key={c.id} className="transition-colors hover:bg-muted/30">
@@ -149,7 +145,11 @@ export function CierresDiariosTable({
 
                   {/* Estado */}
                   <td className="px-3 py-2.5 text-center">
-                    {c.is_closed ? (
+                    {c.anulado ? (
+                      <Badge variant="outline" className="text-xs bg-gray-100 text-gray-500 border-gray-300 hover:bg-gray-100">
+                        Anulado
+                      </Badge>
+                    ) : c.is_closed ? (
                       <Badge variant="destructive" className="text-xs">Sellado</Badge>
                     ) : (
                       <Badge variant="secondary" className="text-xs">Pendiente</Badge>
@@ -179,46 +179,56 @@ export function CierresDiariosTable({
                         <FileDown className="h-3.5 w-3.5" />
                       </Button>
 
-                      {/* Editar — solo super_admin, solo si abierto */}
-                      {esSuperAdmin && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0"
-                          onClick={() => onEditar(c)}
-                          disabled={!esEditable}
-                          title={esEditable ? "Editar cierre" : "Cierre sellado"}
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
+                      {/* Mutaciones — solo super_admin, nunca en anulados */}
+                      {esSuperAdmin && !c.anulado && (
+                        <>
+                          {/* Editar — solo si abierto */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            onClick={() => onEditar(c)}
+                            disabled={c.is_closed}
+                            title={c.is_closed ? "Cierre sellado" : "Editar cierre"}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
 
-                      {/* Sellar — solo super_admin, solo si abierto */}
-                      {esSuperAdmin && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 text-amber-600 hover:text-amber-700"
-                          onClick={() => onCerrar(c)}
-                          disabled={!esEditable}
-                          title={esEditable ? "Sellar cierre" : "Cierre sellado"}
-                        >
-                          <Lock className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
+                          {/* Sellar — solo si abierto */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-amber-600 hover:text-amber-700"
+                            onClick={() => onCerrar(c)}
+                            disabled={c.is_closed}
+                            title={c.is_closed ? "Cierre sellado" : "Sellar cierre"}
+                          >
+                            <Lock className="h-3.5 w-3.5" />
+                          </Button>
 
-                      {/* Eliminar — solo super_admin, solo si abierto */}
-                      {esSuperAdmin && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 text-destructive hover:text-destructive/80"
-                          onClick={() => onEliminar(c)}
-                          disabled={!esEditable}
-                          title={esEditable ? "Eliminar cierre" : "Cierre sellado"}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                          {/* Anular (sellado) o Eliminar (abierto) */}
+                          {c.is_closed ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-destructive hover:text-destructive/80"
+                              onClick={() => onAnular(c)}
+                              title="Anular cierre"
+                            >
+                              <Ban className="h-3.5 w-3.5" />
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-destructive hover:text-destructive/80"
+                              onClick={() => onEliminar(c)}
+                              title="Eliminar cierre"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </>
                       )}
                     </div>
                   </td>
@@ -230,36 +240,7 @@ export function CierresDiariosTable({
       </div>
 
       {/* Paginación */}
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>
-          {total > 0
-            ? `${inicio}–${fin} de ${total} cierre${total !== 1 ? "s" : ""}`
-            : "Sin resultados"}
-        </span>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 w-7 p-0"
-            onClick={() => onPageChange(pagina - 1)}
-            disabled={pagina <= 1}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <span className="px-2 tabular-nums">
-            {pagina} / {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 w-7 p-0"
-            onClick={() => onPageChange(pagina + 1)}
-            disabled={pagina >= totalPages}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+      <Pagination page={page} totalPages={totalPages} onPageChange={onPageChange} />
     </div>
   );
 }

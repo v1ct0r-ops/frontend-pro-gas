@@ -1,5 +1,5 @@
 import apiClient from "@/lib/api";
-import type { MediaCarga, MediaCargaCreate, HistorialAuditoria } from "@/types/api";
+import type { MediaCarga, MediaCargaCreate, HistorialAuditoria, Paginated } from "@/types/api";
 
 const BASE = "/api/v1/medias-cargas";
 
@@ -19,15 +19,20 @@ export async function crearMediaCarga(payload: MediaCargaCreate): Promise<MediaC
 }
 
 export async function listarHistorial(): Promise<HistorialAuditoria[]> {
-  const { data } = await apiClient.get<HistorialAuditoria[] | { items: HistorialAuditoria[] }>(
-    `${BASE}/historial`
-  );
-  return Array.isArray(data) ? data : data.items;
+  // page_size=100: lista completa temporal; migrar a paginación server-side + filtros cuando supere ~100 filas
+  const { data } = await apiClient.get<Paginated<HistorialAuditoria>>(`${BASE}/historial`, {
+    params: { page_size: 100 },
+  });
+  return data.items;
 }
 
 export async function obtenerHistorial(id: number): Promise<HistorialAuditoria> {
   const { data } = await apiClient.get<HistorialAuditoria>(`${BASE}/historial/${id}`);
   return data;
+}
+
+export async function anularMediaCarga(mediaCargaId: number): Promise<void> {
+  await apiClient.delete(`${BASE}/${mediaCargaId}`);
 }
 
 export async function descargarPdfHistorial(id: number, numeroGuia: string): Promise<void> {

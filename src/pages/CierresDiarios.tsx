@@ -20,7 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import apiClient from "@/lib/api";
-import type { CierreDiario, CierreDiarioUpdate, EstadoCuadre, LineaMovimientoCierre, Producto, Usuario } from "@/types/api";
+import type { CierreDiario, CierreDiarioUpdate, EstadoCuadre, LineaMovimientoCierre, Paginated, Producto, Usuario } from "@/types/api";
 
 // ─── Tipos locales ────────────────────────────────────────────────────────────
 
@@ -123,8 +123,8 @@ const SELECT_CLS =
   "focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 
 let nextId = 1;
-function newLinea(formato = ""): LineaVenta {
-  return { id: nextId++, formato, cantidad: "", precio: "" };
+function newLinea(formato = "", precio = ""): LineaVenta {
+  return { id: nextId++, formato, cantidad: "", precio };
 }
 
 // ─── Página principal ─────────────────────────────────────────────────────────
@@ -132,10 +132,9 @@ function newLinea(formato = ""): LineaVenta {
 export default function CierresDiarios() {
   const {
     cierres,
-    total,
     totalPages,
-    pagina,
-    setPagina,
+    page,
+    setPage,
     filtros,
     setFiltros,
     cierreAbiertoHoy,
@@ -147,6 +146,7 @@ export default function CierresDiarios() {
     editarCierre,
     cerrarCierre,
     eliminarCierre,
+    anularCierre,
     descargarPdf,
   } = useCierreDiarios();
 
@@ -161,18 +161,21 @@ export default function CierresDiarios() {
   const productosRef                                = useRef<Producto[]>([]);
 
   // ── Dialogs ───────────────────────────────────────────────────────────────
-  const [cierreParaEditar, setCierreParaEditar]   = useState<CierreDiario | null>(null);
-  const [cierreParaCerrar, setCierreParaCerrar]   = useState<CierreDiario | null>(null);
+  const [cierreParaEditar, setCierreParaEditar]     = useState<CierreDiario | null>(null);
+  const [cierreParaCerrar, setCierreParaCerrar]     = useState<CierreDiario | null>(null);
   const [cierreParaEliminar, setCierreParaEliminar] = useState<CierreDiario | null>(null);
-  const [errorDialog, setErrorDialog]             = useState<string | null>(null);
+  const [cierreParaAnular, setCierreParaAnular]     = useState<CierreDiario | null>(null);
+  const [motivoAnulacion, setMotivoAnulacion]       = useState("");
+  const [errorDialog, setErrorDialog]               = useState<string | null>(null);
 
   // ── Filtros locales (antes de aplicar) ────────────────────────────────────
-  const [filtroChofer, setFiltroChofer]       = useState(filtros.chofer ?? "");
-  const [filtroDesde, setFiltroDesde]         = useState(filtros.fecha_desde?.slice(0, 10) ?? "");
-  const [filtroHasta, setFiltroHasta]         = useState(filtros.fecha_hasta?.slice(0, 10) ?? "");
-  const [filtroEstado, setFiltroEstado]       = useState<"" | "true" | "false">(
+  const [filtroChofer, setFiltroChofer]                   = useState(filtros.chofer ?? "");
+  const [filtroDesde, setFiltroDesde]                     = useState(filtros.fecha_desde?.slice(0, 10) ?? "");
+  const [filtroHasta, setFiltroHasta]                     = useState(filtros.fecha_hasta?.slice(0, 10) ?? "");
+  const [filtroEstado, setFiltroEstado]                   = useState<"" | "true" | "false">(
     filtros.is_closed === true ? "true" : filtros.is_closed === false ? "false" : ""
   );
+  const [filtroIncluirAnulados, setFiltroIncluirAnulados] = useState(false);
 
   // Cargar productos del inventario
   useEffect(() => {
@@ -191,7 +194,7 @@ export default function CierresDiarios() {
             return nA - nB;
           });
           setProductosOrdenados(sorted);
-          setLineas(sorted.map((p) => newLinea(p.formato)));
+          setLineas(sorted.map((p) => newLinea(p.formato, p.precio_publico_base && p.precio_publico_base > 0 ? String(p.precio_publico_base) : "")));
         }
       })
       .catch(() => {});
@@ -199,11 +202,11 @@ export default function CierresDiarios() {
 
   // Cargar choferes (silencioso si 403)
   useEffect(() => {
+    // page_size=100: lista completa temporal; migrar a paginación server-side + filtros cuando supere ~100 filas
     apiClient
-      .get<Usuario[] | { items: Usuario[] }>("/api/v1/usuarios/")
+      .get<Paginated<Usuario>>("/api/v1/usuarios/", { params: { page_size: 100 } })
       .then(({ data }) => {
-        const lista = Array.isArray(data) ? data : data.items;
-        setChoferes(lista.filter((u) => u.estado));
+        setChoferes(data.items.filter((u) => u.estado));
       })
       .catch(() => {});
   }, []);
@@ -233,7 +236,7 @@ export default function CierresDiarios() {
         if (isNaN(nB)) return -1;
         return nA - nB;
       });
-      setLineas(sorted.map((p) => newLinea(p.formato)));
+      setLineas(sorted.map((p) => newLinea(p.formato, p.precio_publico_base && p.precio_publico_base > 0 ? String(p.precio_publico_base) : "")));
     } else {
       setLineas([newLinea()]);
     }
@@ -302,14 +305,30 @@ export default function CierresDiarios() {
     }
   }
 
+  async function handleAnular() {
+    if (!cierreParaAnular) return;
+    if (motivoAnulacion.trim().length < 3) {
+      setErrorDialog("El motivo debe tener al menos 3 caracteres.");
+      return;
+    }
+    setErrorDialog(null);
+    const ok = await anularCierre(cierreParaAnular.id, motivoAnulacion.trim());
+    if (ok) {
+      setCierreParaAnular(null);
+      setMotivoAnulacion("");
+      toast.success("Cierre anulado", { description: "El inventario ha sido revertido." });
+    }
+  }
+
   // ── Aplicar filtros ───────────────────────────────────────────────────────
 
   function aplicarFiltros() {
     setFiltros({
-      chofer:      filtroChofer.trim() || undefined,
-      fecha_desde: filtroDesde ? `${filtroDesde}T00:00:00` : undefined,
-      fecha_hasta: filtroHasta ? `${filtroHasta}T23:59:59` : undefined,
-      is_closed:   filtroEstado === "" ? undefined : filtroEstado === "true",
+      chofer:           filtroChofer.trim() || undefined,
+      fecha_desde:      filtroDesde ? `${filtroDesde}T00:00:00` : undefined,
+      fecha_hasta:      filtroHasta ? `${filtroHasta}T23:59:59` : undefined,
+      is_closed:        filtroEstado === "" ? undefined : filtroEstado === "true",
+      incluir_anulados: filtroIncluirAnulados || undefined,
     });
   }
 
@@ -318,6 +337,7 @@ export default function CierresDiarios() {
     setFiltroDesde("");
     setFiltroHasta("");
     setFiltroEstado("");
+    setFiltroIncluirAnulados(false);
     setFiltros({});
   }
 
@@ -616,6 +636,17 @@ export default function CierresDiarios() {
                 <option value="true">Sellados</option>
               </select>
             </div>
+            <div className="flex flex-col justify-end">
+              <label className="flex items-center gap-2 h-8 cursor-pointer select-none text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <input
+                  type="checkbox"
+                  checked={filtroIncluirAnulados}
+                  onChange={(e) => setFiltroIncluirAnulados(e.target.checked)}
+                  className="h-4 w-4 rounded border-input accent-primary"
+                />
+                Ver anulados
+              </label>
+            </div>
             <div className="flex gap-2">
               <Button size="sm" className="h-8" onClick={aplicarFiltros}>
                 Filtrar
@@ -629,14 +660,14 @@ export default function CierresDiarios() {
           {/* Tabla */}
           <CierresDiariosTable
             cierres={cierres}
-            total={total}
-            pagina={pagina}
+            page={page}
             totalPages={totalPages}
             cargando={cargando}
-            onPageChange={setPagina}
+            onPageChange={setPage}
             onEditar={(c) => setCierreParaEditar(c)}
             onCerrar={(c) => { setErrorDialog(null); setCierreParaCerrar(c); }}
             onEliminar={(c) => { setErrorDialog(null); setCierreParaEliminar(c); }}
+            onAnular={(c) => { setErrorDialog(null); setMotivoAnulacion(""); setCierreParaAnular(c); }}
             onDescargarPdf={descargarPdf}
           />
         </div>
@@ -722,6 +753,68 @@ export default function CierresDiarios() {
               {enviando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Eliminar
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ══ DIALOG — Anular cierre ══════════════════════════════════════════════ */}
+      <AlertDialog
+        open={cierreParaAnular !== null}
+        onOpenChange={(open) => {
+          if (!open && !enviando) {
+            setCierreParaAnular(null);
+            setMotivoAnulacion("");
+            setErrorDialog(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Anular este cierre?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="flex flex-col gap-3 text-sm">
+                {cierreParaAnular && (
+                  <p className="text-muted-foreground">
+                    Cierre de <strong>{cierreParaAnular.chofer_nombre}</strong> del{" "}
+                    <strong>{fechaLegible(cierreParaAnular.fecha)}</strong>.
+                  </p>
+                )}
+                <p className="font-semibold text-destructive">
+                  Esta acción revierte el inventario y no se puede deshacer.
+                </p>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="motivo-anulacion" className="text-sm font-medium text-foreground">
+                    Motivo de anulación <span className="text-destructive">*</span>
+                  </Label>
+                  <textarea
+                    id="motivo-anulacion"
+                    placeholder="Describe el motivo (obligatorio, mínimo 3 caracteres)…"
+                    value={motivoAnulacion}
+                    onChange={(e) => {
+                      setMotivoAnulacion(e.target.value);
+                      if (errorDialog) setErrorDialog(null);
+                    }}
+                    rows={3}
+                    className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+                    disabled={enviando}
+                  />
+                  {errorDialog && (
+                    <p className="text-xs text-destructive">{errorDialog}</p>
+                  )}
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={enviando}>Cancelar</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              onClick={handleAnular}
+              disabled={enviando}
+            >
+              {enviando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirmar anulación
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
