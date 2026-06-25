@@ -121,8 +121,15 @@ export function useCierreDiarios() {
       await svcEditar(id, payload);
       await refetch();
       return true;
-    } catch {
-      setErrorEnvio("No se pudo editar el cierre.");
+    } catch (err) {
+      // HR-F-06: surface el motivo real del backend (403 inmutabilidad,
+      // 409 correlatividad, 400 stock) en vez de un mensaje genérico.
+      const detail = axios.isAxiosError(err)
+        ? (err.response?.data as { detail?: string } | undefined)?.detail
+        : undefined;
+      const msg = detail ?? "No se pudo editar el cierre.";
+      setErrorEnvio(msg);
+      toast.error(msg);
       return false;
     } finally {
       setEnviando(false);
