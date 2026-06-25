@@ -56,7 +56,12 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback(async (credentials: LoginRequest) => {
-    const form = `username=${credentials.email}&password=${credentials.password}`;
+    // HR-F-01: codificar el body con URLSearchParams para que caracteres
+    // especiales (&, +, =, %, espacios) en email/password no corrompan el form.
+    const form = new URLSearchParams({
+      username: credentials.email,
+      password: credentials.password,
+    }).toString();
 
     const { data } = await apiClient.post<LoginResponse>(
       "/api/v1/auth/login",
